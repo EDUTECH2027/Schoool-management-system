@@ -1,0 +1,95 @@
+@import "tailwindcss";
+
+/* Use .dark class on <html> (instead of prefers-color-scheme media query) */
+@variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-brand-50: #eef2ff;
+  --color-brand-100: #e0e7ff;
+  --color-brand-500: #6366f1;
+  --color-brand-600: #4f46e5;
+  --color-brand-700: #4338ca;
+  --color-brand-800: #3730a3;
+  --color-brand-900: #312e81;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, 'Segoe UI', sans-serif; }
+#root { width: 100%; min-height: 100vh; }
+
+@media print {
+  .no-print { display: none !important; }
+  .print-only { display: block !important; }
+}
+.print-only { display: none; }
+
+/* ── Dark mode — global overrides ─────────────────────────────────────────────
+   Non-layered CSS wins over @layer utilities in Tailwind v4, so these selectors
+   override Tailwind's generated classes without needing !important.
+─────────────────────────────────────────────────────────────────────────────── */
+
+/* Neutral backgrounds */
+.dark .bg-white     { background-color: #1e293b; } /* slate-800 */
+.dark .bg-slate-50  { background-color: #0f172a; } /* slate-950 */
+.dark .bg-slate-100 { background-color: #1e293b; } /* slate-800 */
+.dark .bg-slate-200 { background-color: #334155; } /* slate-700 */
+.dark .bg-slate-300 { background-color: #475569; } /* slate-600 */
+
+/* Hover backgrounds — must target the generated hover: utility class */
+.dark .hover\:bg-slate-50:hover  { background-color: #1e293b; } /* slate-800 */
+.dark .hover\:bg-slate-100:hover { background-color: #293548; } /* between 800 and 700 */
+.dark .hover\:bg-slate-200:hover { background-color: #334155; } /* slate-700 */
+
+/* Borders */
+.dark .border-slate-200,
+.dark .border-slate-100 { border-color: #334155; } /* slate-700 */
+
+/* Dividers (table rows etc.) */
+.dark .divide-slate-100 > * { border-color: #334155; }
+.dark .divide-slate-200 > * { border-color: #334155; }
+
+/* Text */
+.dark .text-slate-900 { color: #f8fafc; } /* slate-50  */
+.dark .text-slate-800 { color: #f1f5f9; } /* slate-100 */
+.dark .text-slate-700 { color: #e2e8f0; } /* slate-200 */
+.dark .text-slate-600 { color: #cbd5e1; } /* slate-300 */
+.dark .text-slate-500 { color: #94a3b8; } /* slate-400 */
+
+/* Light tint backgrounds (badges, highlights) */
+.dark .bg-indigo-50  { background-color: rgba(79,70,229,.18);  }
+.dark .bg-green-50   { background-color: rgba(34,197,94,.12);  }
+.dark .bg-emerald-50 { background-color: rgba(16,185,129,.12); }
+.dark .bg-red-50     { background-color: rgba(239,68,68,.12);  }
+.dark .bg-amber-50   { background-color: rgba(245,158,11,.12); }
+.dark .bg-orange-50  { background-color: rgba(249,115,22,.12); }
+.dark .bg-violet-50  { background-color: rgba(139,92,246,.12); }
+.dark .bg-sky-50     { background-color: rgba(14,165,233,.12); }
+.dark .bg-blue-50    { background-color: rgba(59,130,246,.12); }
+.dark .bg-pink-50    { background-color: rgba(236,72,153,.12); }
+.dark .bg-rose-50    { background-color: rgba(244,63,94,.12);  }
+.dark .bg-teal-50    { background-color: rgba(20,184,166,.12); }
+.dark .bg-purple-50  { background-color: rgba(168,85,247,.12); }
+
+/* Light tint text colours — keep readable on tinted dark bg */
+.dark .text-indigo-700 { color: #a5b4fc; } /* indigo-300 */
+.dark .text-green-700  { color: #86efac; } /* green-300  */
+.dark .text-emerald-700{ color: #6ee7b7; }
+.dark .text-red-700    { color: #fca5a5; }
+.dark .text-amber-700  { color: #fcd34d; }
+.dark .text-orange-700 { color: #fdba74; }
+.dark .text-violet-700 { color: #c4b5fd; }
+.dark .text-sky-700    { color: #7dd3fc; }
+.dark .text-blue-700   { color: #93c5fd; }
+.dark .text-pink-700   { color: #f9a8d4; }
+.dark .text-rose-700   { color: #fda4af; }
+.dark .text-teal-700   { color: #5eead4; }
+.dark .text-purple-700 { color: #d8b4fe; }
+
+/* Form elements — dark background for inputs without explicit bg class */
+.dark input, .dark select, .dark textarea {
+  color-scheme: dark;
+  background-color: #1e293b;
+  color: #f1f5f9;
+  border-color: #334155;
+}
+.dark input::placeholder, .dark textarea::placeholder { color: #475569; }
