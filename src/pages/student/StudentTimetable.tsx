@@ -36,7 +36,7 @@ export default function StudentTimetable() {
                       {slot ? (
                         <div className="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-2">
                           <p className="font-medium text-emerald-800 dark:text-emerald-200 text-xs">{slot.subject_name}</p>
-                          {slot.teacher_name && <p className="text-emerald-600 dark:text-emerald-400 text-xs">{slot.teacher_name}</p>}
+                          {(slot.first_name || slot.last_name) && <p className="text-emerald-600 dark:text-emerald-400 text-xs">{[slot.first_name, slot.last_name].filter(Boolean).join(' ')}</p>}
                           {slot.time && <p className="text-emerald-500 text-xs">{slot.time}</p>}
                         </div>
                       ) : <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>}

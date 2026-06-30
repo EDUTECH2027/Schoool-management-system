@@ -71,7 +71,7 @@ export default function StudentDashboard() {
             {today.map(s => (
               <div key={s.id} className="flex justify-between py-2 border-b border-slate-100 dark:border-slate-700 last:border-0 text-sm">
                 <span className="font-medium text-slate-700 dark:text-slate-300">{s.subject_name}</span>
-                <span className="text-slate-500">{s.teacher_name ?? ''} · {s.time ?? s.period_label}</span>
+                <span className="text-slate-500">{[s.first_name, s.last_name].filter(Boolean).join(' ')} · {s.time ?? s.period_label}</span>
               </div>
             ))}
           </div>
