@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001/api';
+const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
 function getToken(): string | null {
   try {
@@ -13,7 +13,7 @@ function getToken(): string | null {
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const token = getToken();
-  const res = await fetch(`${BASE}${path}`, {
+  const res = await fetch(`${BASE}/api${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
