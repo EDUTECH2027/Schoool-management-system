@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Upload, X, CalendarDays, AlertTriangle, CheckCircle2, BookOpen, Trash2, Plus, Pencil, Check, Download, Database, FileUp, DollarSign } from 'lucide-react';
 import type { Subject } from '../types';
-import { api, type ClassRecord, type GradeLevel, type Teacher as TeacherRaw, type AcademicYear, type Term } from '../api/client';
+import { api, type ClassRecord, type Teacher as TeacherRaw, type AcademicYear, type Term } from '../api/client';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useBranding } from '../context/BrandingContext';
 
@@ -85,13 +85,12 @@ export default function Settings() {
   const [editSubCode,  setEditSubCode]  = useState('');
 
   // Classes state
-  type ClassFormState = { name: string; gradeLevelId: string; room: string; capacity: string; teacherId: string };
-  const [classList,       setClassList]       = useState<ClassRecord[]>([]);
-  const [gradeLevelsList, setGradeLevelsList] = useState<GradeLevel[]>([]);
-  const [teachersList,    setTeachersList]    = useState<TeacherRaw[]>([]);
-  const [editingClassId,  setEditingClassId]  = useState<string | null>(null);
-  const [editCls,  setEditCls]  = useState<ClassFormState>({ name: '', gradeLevelId: '', room: '', capacity: '40', teacherId: '' });
-  const [newCls,   setNewCls]   = useState<ClassFormState>({ name: '', gradeLevelId: '', room: '', capacity: '40', teacherId: '' });
+  type ClassFormState = { name: string; room: string; capacity: string; teacherId: string };
+  const [classList,      setClassList]      = useState<ClassRecord[]>([]);
+  const [teachersList,   setTeachersList]   = useState<TeacherRaw[]>([]);
+  const [editingClassId, setEditingClassId] = useState<string | null>(null);
+  const [editCls,  setEditCls]  = useState<ClassFormState>({ name: '', room: '', capacity: '40', teacherId: '' });
+  const [newCls,   setNewCls]   = useState<ClassFormState>({ name: '', room: '', capacity: '40', teacherId: '' });
   const [classError, setClassError] = useState<string | null>(null);
 
   // Academic years & terms state
@@ -105,17 +104,14 @@ export default function Settings() {
   useEffect(() => {
     Promise.all([
       api.getClasses(),
-      api.getGradeLevels(),
       api.getTeachers({ isActive: 'true' }),
       api.getYears(),
       api.getTerms(),
       api.getSubjects(),
       api.getSchool().catch(() => null),
-    ]).then(([classes, grades, teachers, years, terms, subjects, school]) => {
+    ]).then(([classes, teachers, years, terms, subjects, school]) => {
       setClassList(classes);
-      setGradeLevelsList(grades);
       setTeachersList(teachers);
-      if (grades.length > 0) setNewCls(prev => ({ ...prev, gradeLevelId: grades[0].id }));
       setAcademicYears(years);
       setAllTerms(terms);
       if (years.length > 0) setNewTerm(prev => ({ ...prev, academic_year_id: years[0].id }));
@@ -182,20 +178,13 @@ export default function Settings() {
 
   const addClassEntry = async () => {
     setClassError(null);
-    if (!newCls.name.trim() || !newCls.gradeLevelId) {
-      setClassError(t.settings.classCreateValidation || 'Name and grade level are required.');
-      return;
-    }
-    const gl      = gradeLevelsList.find(g => g.id === newCls.gradeLevelId);
-    if (!gl) {
-      setClassError(t.settings.invalidGradeLevel || 'Selected grade level is invalid.');
+    if (!newCls.name.trim()) {
+      setClassError('Class name is required.');
       return;
     }
     const teacher = teachersList.find(tc => tc.id === newCls.teacherId);
     try {
       const created = await api.createClass({
-        grade_level_id:     gl.id,
-        grade_level_name:   gl.name,
         name:               newCls.name.trim(),
         capacity:           Math.max(1, Number(newCls.capacity) || 40),
         room:               newCls.room.trim() || undefined,
@@ -221,18 +210,17 @@ export default function Settings() {
 
   const startEditClass = (c: ClassRecord) => {
     setEditingClassId(c.id);
-    setEditCls({ name: c.name, gradeLevelId: c.grade_level_id, room: c.room, capacity: String(c.capacity), teacherId: c.class_teacher_id ?? '' });
+    setEditCls({ name: c.name, room: c.room, capacity: String(c.capacity), teacherId: c.class_teacher_id ?? '' });
   };
 
   const commitEditClass = async () => {
     if (!editingClassId) return;
-    const gl      = gradeLevelsList.find(g => g.id === editCls.gradeLevelId);
-    if (!gl) return;
-    const teacher = teachersList.find(tc => tc.id === editCls.teacherId);
+    const existing = classList.find(c => c.id === editingClassId);
+    const teacher  = teachersList.find(tc => tc.id === editCls.teacherId);
     try {
       const updated = await api.updateClass(editingClassId, {
-        grade_level_id:     gl.id,
-        grade_level_name:   gl.name,
+        grade_level_id:     existing?.grade_level_id,
+        grade_level_name:   existing?.grade_level_name,
         name:               editCls.name.trim() || undefined,
         capacity:           Math.max(1, Number(editCls.capacity) || 40),
         room:               editCls.room.trim() || undefined,
@@ -923,13 +911,6 @@ export default function Settings() {
             <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100">
               {editingClassId === c.id ? (
                 <>
-                  <select
-                    value={editCls.gradeLevelId}
-                    onChange={e => setEditCls(prev => ({ ...prev, gradeLevelId: e.target.value }))}
-                    className="w-32 py-1.5 px-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-                  >
-                    {gradeLevelsList.map(gl => <option key={gl.id} value={gl.id}>{gl.name}</option>)}
-                  </select>
                   <input
                     value={editCls.name}
                     onChange={e => setEditCls(prev => ({ ...prev, name: e.target.value }))}
@@ -966,7 +947,6 @@ export default function Settings() {
               ) : (
                 <>
                   <span className="flex-1 text-sm text-slate-800 font-medium">{c.name}</span>
-                  <span className="text-xs text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">{c.grade_level_name}</span>
                   <span className="text-xs text-slate-500 w-16 text-center">{c.room}</span>
                   <span className="text-xs text-slate-400 w-20 text-center">{c.capacity} {lbl('seats', 'places')}</span>
                   <span className="text-xs text-slate-500 truncate max-w-[130px]">{c.class_teacher_name || '—'}</span>
@@ -986,14 +966,6 @@ export default function Settings() {
         <div className="p-4 rounded-xl border-2 border-dashed border-slate-200 space-y-3">
           <div className="flex items-center gap-3">
             <Plus size={16} className="text-slate-400 shrink-0" />
-            <select
-              value={newCls.gradeLevelId}
-              onChange={e => setNewCls(prev => ({ ...prev, gradeLevelId: e.target.value }))}
-              className="w-36 py-1.5 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
-            >
-              <option value="">{lbl('Grade level', 'Niveau')}</option>
-              {gradeLevelsList.map(gl => <option key={gl.id} value={gl.id}>{gl.name}</option>)}
-            </select>
             <input
               value={newCls.name}
               onChange={e => setNewCls(prev => ({ ...prev, name: e.target.value }))}
@@ -1027,7 +999,7 @@ export default function Settings() {
             </select>
             <button
               onClick={addClassEntry}
-              disabled={!newCls.name.trim() || !newCls.gradeLevelId}
+              disabled={!newCls.name.trim()}
               className="shrink-0 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
             >
               <Plus size={14} />
