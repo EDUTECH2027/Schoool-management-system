@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Upload, X, CalendarDays, AlertTriangle, CheckCircle2, BookOpen, Trash2, Plus, Pencil, Check, Download, Database, FileUp, DollarSign } from 'lucide-react';
 import type { Subject } from '../types';
 import { api, type ClassRecord, type GradeLevel, type Teacher as TeacherRaw, type AcademicYear, type Term } from '../api/client';
+import { useLanguage } from '../i18n/LanguageContext';
+import { useBranding } from '../context/BrandingContext';
 
 interface FeeInstallment {
   label:   string;
@@ -23,9 +25,6 @@ function loadInstallments(): FeeInstallment[] {
   } catch { /* ignore */ }
   return DEFAULT_INSTALLMENTS;
 }
-
-import { useLanguage } from '../i18n/LanguageContext';
-import { useBranding } from '../context/BrandingContext';
 
 // ── Backup helpers ─────────────────────────────────────────────────────────
 function toCSV(headers: string[], rows: (string | number | boolean | null | undefined)[][]): string {
@@ -93,6 +92,7 @@ export default function Settings() {
   const [editingClassId,  setEditingClassId]  = useState<string | null>(null);
   const [editCls,  setEditCls]  = useState<ClassFormState>({ name: '', gradeLevelId: '', room: '', capacity: '40', teacherId: '' });
   const [newCls,   setNewCls]   = useState<ClassFormState>({ name: '', gradeLevelId: '', room: '', capacity: '40', teacherId: '' });
+  const [classError, setClassError] = useState<string | null>(null);
 
   // Academic years & terms state
   const [academicYears, setAcademicYears] = useState<AcademicYear[]>([]);
@@ -135,18 +135,7 @@ export default function Settings() {
         if (school.name) setSchoolName(school.name);
       }
     }).catch(console.error);
-  }, []);
-
-  const addYear = async () => {
-    if (!newYear.label.trim() || !newYear.start_date || !newYear.end_date) return;
-    setCalSaving(true);
-    try {
-      const created = await api.createYear(newYear);
-      setAcademicYears(prev => [...prev, created]);
-      setNewTerm(prev => ({ ...prev, academic_year_id: created.id }));
-    } catch (err) { console.error(err); }
-    setCalSaving(false);
-  };
+  }, [setSchoolInfo, setSchoolName]);
 
   const setCurrentYear = async (id: string) => {
     const found = academicYears.find(y => y.id === id);
@@ -158,13 +147,14 @@ export default function Settings() {
     } catch (err) { console.error(err); }
   };
 
-  const addTerm = async () => {
-    if (!newTerm.academic_year_id || !newTerm.start_date || !newTerm.end_date) return;
+  const addYear = async () => {
+    if (!newYear.label.trim() || !newYear.start_date || !newYear.end_date) return;
     setCalSaving(true);
     try {
-      const created = await api.createTerm({ ...newTerm });
-      setAllTerms(prev => [...prev, created]);
-      setNewTerm(prev => ({ ...prev, name: 'first', start_date: '', end_date: '', is_current: false }));
+      const created = await api.createYear(newYear);
+      setAcademicYears(prev => [...prev, created]);
+      setNewTerm(prev => ({ ...prev, academic_year_id: created.id }));
+      setNewYear(prev => ({ ...prev, name: 'first', start_date: '', end_date: '' }));
     } catch (err) { console.error(err); }
     setCalSaving(false);
   };
@@ -179,10 +169,28 @@ export default function Settings() {
     } catch (err) { console.error(err); }
   };
 
+  const addTerm = async () => {
+    if (!newTerm.academic_year_id || !newTerm.start_date || !newTerm.end_date) return;
+    setCalSaving(true);
+    try {
+      const created = await api.createTerm({ ...newTerm });
+      setAllTerms(prev => [...prev, created]);
+      setNewTerm(prev => ({ ...prev, name: 'first', start_date: '', end_date: '', is_current: false }));
+    } catch (err) { console.error(err); }
+    setCalSaving(false);
+  };
+
   const addClassEntry = async () => {
-    if (!newCls.name.trim() || !newCls.gradeLevelId || !newCls.room.trim()) return;
+    setClassError(null);
+    if (!newCls.name.trim() || !newCls.gradeLevelId) {
+      setClassError(t.settings.classCreateValidation || 'Name and grade level are required.');
+      return;
+    }
     const gl      = gradeLevelsList.find(g => g.id === newCls.gradeLevelId);
-    if (!gl) return;
+    if (!gl) {
+      setClassError(t.settings.invalidGradeLevel || 'Selected grade level is invalid.');
+      return;
+    }
     const teacher = teachersList.find(tc => tc.id === newCls.teacherId);
     try {
       const created = await api.createClass({
@@ -190,7 +198,7 @@ export default function Settings() {
         grade_level_name:   gl.name,
         name:               newCls.name.trim(),
         capacity:           Math.max(1, Number(newCls.capacity) || 40),
-        room:               newCls.room.trim(),
+        room:               newCls.room.trim() || undefined,
         class_teacher_id:   teacher?.id,
         class_teacher_name: teacher ? `${teacher.first_name} ${teacher.last_name}` : undefined,
       });
@@ -198,6 +206,7 @@ export default function Settings() {
       setNewCls(prev => ({ ...prev, name: '', room: '', capacity: '40', teacherId: '' }));
     } catch (err) {
       console.error('Failed to create class:', err);
+      setClassError(err instanceof Error ? err.message : 'Failed to create class.');
     }
   };
 
@@ -1018,13 +1027,16 @@ export default function Settings() {
             </select>
             <button
               onClick={addClassEntry}
-              disabled={!newCls.name.trim() || !newCls.gradeLevelId || !newCls.room.trim()}
+              disabled={!newCls.name.trim() || !newCls.gradeLevelId}
               className="shrink-0 flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
             >
               <Plus size={14} />
               {lbl('Add Class', 'Ajouter')}
             </button>
           </div>
+          {classError && (
+            <p className="mt-2 text-sm text-red-600">{classError}</p>
+          )}
         </div>
       </div>
 

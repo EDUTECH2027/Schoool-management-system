@@ -12,6 +12,9 @@ interface Props {
 
 const METHODS = ['Cash', 'Bank Transfer', 'Mobile Money', 'Cheque'];
 
+const createPaymentId = () => `p-${Date.now()}`;
+const createReceiptNumber = () => `RCP-${Date.now().toString().slice(-6)}`;
+
 export default function RecordPaymentModal({ records, initialRecordId, onClose, onSubmit }: Props) {
   const { lang } = useLanguage();
   const lbl = (en: string, fr: string) => lang === 'fr' ? fr : en;
@@ -43,12 +46,12 @@ export default function RecordPaymentModal({ records, initialRecordId, onClose, 
   const handleSubmit = () => {
     if (!validate() || !record) return;
     const payment: Payment = {
-      id:            `p-${Date.now()}`,
+      id:            createPaymentId(),
       amount:        Number(amount),
       method,
       reference:     reference.trim(),
       paymentDate:   date,
-      receiptNumber: `RCP-${Date.now().toString().slice(-6)}`,
+      receiptNumber: createReceiptNumber(),
     };
     onSubmit(record.id, payment);
     setDone(true);

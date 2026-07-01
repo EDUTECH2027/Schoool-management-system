@@ -113,6 +113,7 @@ export interface Translations {
     feeSchedule: string; installment: string; totalAmount: string; feeScheduleHint: string;
     subjects: string; subjectsHint: string; addSubject: string;
     subjectName: string; subjectCode: string; deleteSubject: string; noSubjects: string;
+    classCreateValidation: string; invalidGradeLevel: string;
   };
   portal: {
     myProfile: string; myClass: string; markEntry: string; myAttendance: string;
@@ -266,6 +267,8 @@ export const en: Translations = {
     subjects: 'Subjects', subjectsHint: 'Manage subjects used in the timetable and assessments',
     addSubject: 'Add Subject', subjectName: 'Subject Name', subjectCode: 'Code (e.g. MTH)',
     deleteSubject: 'Delete subject', noSubjects: 'No subjects defined yet.',
+    classCreateValidation: 'Name and grade level are required.',
+    invalidGradeLevel: 'Selected grade level is invalid.',
   },
   portal: {
     myProfile: 'My Profile', myClass: 'My Class', markEntry: 'Mark Entry',
@@ -425,6 +428,8 @@ export const fr: Translations = {
     subjects: 'Matières', subjectsHint: "Gérer les matières utilisées dans l'emploi du temps et les évaluations",
     addSubject: 'Ajouter une matière', subjectName: 'Nom de la matière', subjectCode: 'Code (ex. MTH)',
     deleteSubject: 'Supprimer la matière', noSubjects: 'Aucune matière définie.',
+    classCreateValidation: 'Le nom et le niveau sont requis.',
+    invalidGradeLevel: 'Le niveau sélectionné est invalide.',
   },
   portal: {
     myProfile: 'Mon Profil', myClass: 'Ma Classe', markEntry: 'Saisie des notes',
