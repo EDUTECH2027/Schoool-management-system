@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Save, FileText, BarChart2, CheckCircle2, XCircle, BookOpen } from 'lucide-react';
-import { subjects as staticSubjects } from '../data/mockData';
-import type { Class, Student, Term } from '../types';
+import type { Class, Student, Term, Subject } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api } from '../api/client';
 import { mapClass, mapStudent, mapTerm } from '../api/mappers';
@@ -26,14 +25,13 @@ type SeqScores = Record<string, { seq1: string; seq2: string }>;
 export default function Assessments() {
   const { t, lang } = useLanguage();
 
-  const subjects = staticSubjects; // always populated from seed
-
   const [classes,  setClasses]  = useState<Class[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [terms,    setTerms]    = useState<Term[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
 
   const [classId,   setClassId]   = useState('');
-  const [subjectId, setSubjectId] = useState(subjects[0]?.id ?? '');
+  const [subjectId, setSubjectId] = useState('');
   const [termId,    setTermId]    = useState('');
   const [saved,     setSaved]     = useState(false);
   const [saving,    setSaving]    = useState(false);
@@ -44,15 +42,17 @@ export default function Assessments() {
   const [scores, setScores] = useState<SeqScores>({});
   const [studentsReady, setStudentsReady] = useState(false);
 
-  // Load classes + terms once
+  // Load classes + terms + subjects once
   useEffect(() => {
-    Promise.all([api.getClasses(), api.getTerms()])
-      .then(([cls, tms]) => {
+    Promise.all([api.getClasses(), api.getTerms(), api.getSubjects()])
+      .then(([cls, tms, subs]) => {
         const mappedCls  = cls.map(mapClass);
         const mappedTrms = tms.map(mapTerm);
         setClasses(mappedCls);
         setTerms(mappedTrms);
+        setSubjects(subs);
         if (mappedCls.length > 0)  setClassId(mappedCls[0].id);
+        if (subs.length > 0)       setSubjectId(subs[0].id);
         const current = mappedTrms.find(t => t.isCurrent);
         if (current)                setTermId(current.id);
         else if (mappedTrms.length) setTermId(mappedTrms[0].id);
@@ -228,6 +228,24 @@ export default function Assessments() {
           {lang === 'fr'
             ? 'Ajoutez une année académique et au moins un trimestre dans les Paramètres avant de saisir des notes.'
             : 'Add an academic year and at least one term in Settings before entering marks.'}
+        </p>
+      </div>
+    );
+  }
+
+  if (subjects.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center">
+        <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mb-4">
+          <BookOpen size={28} className="text-amber-400" />
+        </div>
+        <h3 className="text-slate-700 font-semibold text-lg mb-1">
+          {lang === 'fr' ? 'Aucune matière configurée' : 'No subjects configured'}
+        </h3>
+        <p className="text-slate-400 text-sm max-w-xs">
+          {lang === 'fr'
+            ? 'Ajoutez des matières dans les Paramètres avant de saisir des notes.'
+            : 'Add subjects in Settings before entering marks.'}
         </p>
       </div>
     );
