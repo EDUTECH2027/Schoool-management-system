@@ -25,7 +25,7 @@ export default function StatCard({ label, value, sub, icon: Icon, color = 'indig
     <div
       onClick={onClick}
       className={[
-        'relative overflow-hidden rounded-2xl p-5 shadow-md',
+        'relative overflow-hidden rounded-2xl p-3 sm:p-5 shadow-md',
         'transition-all duration-200 hover:-translate-y-1 hover:shadow-xl',
         onClick ? 'cursor-pointer active:scale-95 select-none' : 'cursor-default',
         gradients[color],
@@ -36,21 +36,21 @@ export default function StatCard({ label, value, sub, icon: Icon, color = 'indig
       <div className="absolute top-0 inset-x-0 h-px bg-white/30" />
 
       {/* Large decorative background icon */}
-      <Icon size={100} className="absolute -right-5 -bottom-3 text-white/12 pointer-events-none" />
+      <Icon size={100} className="absolute -right-5 -bottom-3 text-white/12 pointer-events-none hidden sm:block" />
 
       {/* Icon badge */}
-      <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center mb-4 shadow-sm">
-        <Icon size={21} className="text-white" />
+      <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-white/20 flex items-center justify-center mb-3 sm:mb-4 shadow-sm">
+        <Icon size={18} className="sm:w-[21px] sm:h-[21px] text-white" />
       </div>
 
       {/* Value */}
-      <p className="text-[2.1rem] font-extrabold text-white leading-none tracking-tight">{value}</p>
+      <p className="text-[1.25rem] sm:text-[2.1rem] font-extrabold text-white leading-none tracking-tight">{value}</p>
 
       {/* Label */}
-      <p className="text-white/85 text-sm font-semibold mt-2 leading-tight">{label}</p>
+      <p className="text-white/85 text-xs sm:text-sm font-semibold mt-2 leading-tight">{label}</p>
 
       {/* Sub */}
-      {sub && <p className="text-white/55 text-xs mt-1">{sub}</p>}
+      {sub && <p className="text-white/55 text-[10px] sm:text-xs mt-1">{sub}</p>}
     </div>
   );
 }

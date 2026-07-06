@@ -335,7 +335,7 @@ export default function TeacherPayment() {
       </div>
 
       {/* ── KPI cards ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
           { icon: Wallet,       label: lbl('Total Payroll', 'Masse salariale'), value: kpi.totalNet.toLocaleString('fr-FR') + ' FCFA', bg: 'bg-indigo-50', ic: 'text-indigo-600', border: 'border-indigo-100' },
           { icon: TrendingUp,   label: lbl('Average Pay',   'Salaire moyen'),   value: Math.round(kpi.avgNet).toLocaleString('fr-FR') + ' FCFA', bg: 'bg-violet-50', ic: 'text-violet-600', border: 'border-violet-100' },

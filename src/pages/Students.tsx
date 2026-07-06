@@ -91,7 +91,7 @@ export default function Students() {
 
       {/* ── Search & filters ────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 p-4">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
 
           {/* Main search bar */}
           <div className="relative flex-1 min-w-52">
@@ -239,7 +239,7 @@ export default function Students() {
 
       {/* ── Table ────────────────────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100">
+        <div className="flex flex-col gap-2 px-5 py-3 border-b border-slate-100 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-slate-600 font-medium">
             {filtered.length} {t.students.studentsFound}
             {search && <span className="text-indigo-600"> — "{search}"</span>}

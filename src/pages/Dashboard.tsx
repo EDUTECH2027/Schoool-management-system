@@ -78,14 +78,14 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Welcome banner */}
-      <div className="bg-linear-to-r from-indigo-600 to-indigo-500 rounded-xl px-6 py-5 text-white">
+      <div className="bg-linear-to-r from-indigo-600 to-indigo-500 rounded-xl px-4 py-5 sm:px-6 text-white">
         <p className="text-indigo-100 text-sm">{t.dashboard.welcomeBack}</p>
         <h2 className="text-xl font-bold mt-0.5">{schoolInfo.headTeacher} &nbsp;·&nbsp; {schoolInfo.name}</h2>
         <p className="text-indigo-200 text-sm mt-1">{schoolInfo.motto}</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard label={t.dashboard.totalStudents}   value={stats?.totalStudents ?? 0}        sub={t.dashboard.enrolledThisYear} icon={Users}         color="indigo" onClick={() => navigate('/students')}   />
         <StatCard label={t.dashboard.teachers}        value={stats?.totalTeachers ?? 0}        sub={t.dashboard.activeStaff}      icon={GraduationCap} color="blue"   onClick={() => navigate('/teachers')}   />
         <StatCard label={t.dashboard.classes}         value={stats?.totalClasses  ?? 0}        sub={t.dashboard.activeStreams}     icon={BookOpen}      color="purple" onClick={() => navigate('/classes')}    />
@@ -124,8 +124,8 @@ export default function Dashboard() {
         {/* Fee collection */}
         <div className="bg-white rounded-xl border border-slate-200 p-5 transition-transform duration-200 hover:-translate-y-1 hover:shadow-md cursor-default">
           <h3 className="text-slate-800 font-semibold mb-4">{t.dashboard.feeCollection}</h3>
-          <div className="flex items-center gap-4 mb-4">
-            <div className="relative w-20 h-20 shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
+            <div className="relative w-20 h-20 shrink-0 self-center sm:self-auto">
               <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
                 <circle cx="18" cy="18" r="15.9" fill="none" stroke="#e2e8f0" strokeWidth="3" />
                 <circle cx="18" cy="18" r="15.9" fill="none" stroke="#4f46e5" strokeWidth="3"
@@ -261,13 +261,13 @@ export default function Dashboard() {
               {filteredStudents.length}
             </span>
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-52">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               value={studentSearch}
               onChange={e => setStudentSearch(e.target.value)}
               placeholder={t.students.searchPlaceholder}
-              className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 w-52"
+              className="w-full pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
           </div>
         </div>

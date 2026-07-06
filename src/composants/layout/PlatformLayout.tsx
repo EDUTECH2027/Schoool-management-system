@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import PlatformSidebar from './PlatformSidebar';
 import Header from './Header';
 
-export default function Layout() {
+export default function PlatformLayout() {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -19,7 +19,7 @@ export default function Layout() {
       />
 
       <div className={`fixed inset-y-0 left-0 z-50 transition-transform duration-200 lg:static lg:translate-x-0 ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <Sidebar />
+        <PlatformSidebar />
       </div>
 
       <div className="flex-1 flex flex-col min-w-0">

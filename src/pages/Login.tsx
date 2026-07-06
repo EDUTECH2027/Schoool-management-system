@@ -65,7 +65,7 @@ export default function Login() {
       <div className="absolute top-[40%] left-[55%] w-64 h-64 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
 
       {/* ── Floating card ───────────────────────────────────────── */}
-      <div className="relative z-10 w-full max-w-5xl flex rounded-3xl overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.6)]">
+      <div className="relative z-10 w-full max-w-5xl flex flex-col lg:flex-row rounded-3xl overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.6)]">
 
         {/* ── LEFT PANEL — branding ──────────────────────────────── */}
         <div
@@ -149,7 +149,7 @@ export default function Login() {
         </div>
 
         {/* ── RIGHT PANEL — login form ────────────────────────────── */}
-        <div className="flex-1 bg-white flex items-center justify-center px-8 py-10 sm:px-12">
+        <div className="flex-1 bg-white flex items-center justify-center px-5 py-8 sm:px-8 sm:py-10">
           <div className="w-full max-w-85">
 
             {/* Mobile logo */}

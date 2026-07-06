@@ -5,11 +5,12 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
-  role: 'super_admin' | 'head_teacher' | 'teacher' | 'student' | 'parent';
+  role: 'super_admin' | 'head_teacher' | 'teacher' | 'student' | 'parent' | 'platform_owner' | 'platform_admin';
   initials: string;
   teacher_id?: string | null;
   student_id?: string | null;
   parent_id?: string | null;
+  must_change_password?: boolean;
   token?: string;
 }
 
@@ -17,10 +18,11 @@ interface AuthContextValue {
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
+  clearMustChangePassword: () => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
-  user: null, login: async () => false, logout: () => {},
+  user: null, login: async () => false, logout: () => {}, clearMustChangePassword: () => {},
 });
 
 const stored = (): AuthUser | null => {
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         teacher_id: res.user.teacher_id ?? null,
         student_id: res.user.student_id ?? null,
         parent_id:  res.user.parent_id  ?? null,
+        must_change_password: !!res.user.must_change_password,
         token:      res.token,
       };
       setUser(authUser);
@@ -59,8 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('auth_user');
   };
 
+  const clearMustChangePassword = () => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, must_change_password: false };
+      localStorage.setItem('auth_user', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout, clearMustChangePassword }}>
       {children}
     </AuthContext.Provider>
   );

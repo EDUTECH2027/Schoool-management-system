@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard, Users, BookOpen, GraduationCap,
@@ -9,6 +9,9 @@ import { clsx } from 'clsx';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useBranding } from '../../context/BrandingContext';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../api/client';
+import { mapTerm } from '../../api/mappers';
+import type { Term } from '../../types';
 
 const COMM_PATHS = ['/announcements', '/email-alerts', '/discussion-forums'];
 
@@ -19,6 +22,8 @@ export default function Sidebar() {
   const isAdmin = user?.role === 'super_admin' || user?.role === 'head_teacher';
   const { pathname } = useLocation();
   const [commOpen, setCommOpen] = useState(() => COMM_PATHS.includes(pathname));
+  const [currentTerm, setCurrentTerm] = useState<Term | null>(null);
+  const [currentAcademicYearLabel, setCurrentAcademicYearLabel] = useState('');
 
   const nav = [
     { label: t.nav.dashboard,    to: '/dashboard',    icon: LayoutDashboard },
@@ -34,8 +39,25 @@ export default function Sidebar() {
     { label: t.nav.parents,      to: '/parents',      icon: UserRound        },
   ];
 
+  useEffect(() => {
+    Promise.all([api.getTerms(), api.getYears()])
+      .then(([tms, yrs]) => {
+        const mapped = tms.map(mapTerm);
+        const current = mapped.find(t => t.isCurrent) ?? mapped[0] ?? null;
+        setCurrentTerm(current);
+        if (current) {
+          const year = yrs.find(y => y.id === current.academicYearId);
+          setCurrentAcademicYearLabel(year?.label ?? '');
+        }
+      })
+      .catch(() => {
+        setCurrentTerm(null);
+        setCurrentAcademicYearLabel('');
+      });
+  }, []);
+
   return (
-    <aside className="w-64 bg-slate-900 flex flex-col h-screen shrink-0">
+    <aside className="w-[86vw] max-w-72 bg-slate-900 flex flex-col h-screen shrink-0 lg:w-64">
       {/* Logo */}
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-3">
@@ -182,7 +204,9 @@ export default function Sidebar() {
         <div className="bg-slate-800 rounded-lg px-3 py-2">
           <p className="text-slate-400 text-xs">{t.nav.currentTerm}</p>
           <p className="text-white text-sm font-medium">
-            {lang === 'fr' ? 'Trimestre 2' : 'Term 2'} · 2025/2026
+            {currentTerm
+              ? `${lang === 'fr' ? 'Trimestre' : 'Term'} ${currentTerm.name === 'first' ? 1 : currentTerm.name === 'second' ? 2 : 3}${currentAcademicYearLabel ? ` · ${currentAcademicYearLabel}` : ''}`
+              : lang === 'fr' ? 'Chargement...' : 'Loading...'}
           </p>
         </div>
       </div>

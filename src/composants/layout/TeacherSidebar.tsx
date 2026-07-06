@@ -26,7 +26,7 @@ export default function TeacherSidebar() {
   ];
 
   return (
-    <aside className="w-64 bg-slate-900 flex flex-col h-screen shrink-0">
+    <aside className="w-[86vw] max-w-72 bg-slate-900 flex flex-col h-screen shrink-0 lg:w-64">
       <div className="px-6 py-5 border-b border-slate-700">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg flex items-center justify-center overflow-hidden shrink-0">

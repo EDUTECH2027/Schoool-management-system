@@ -536,7 +536,7 @@ export default function Settings() {
         {/* School Information */}
         <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 p-6">
           <h3 className="font-semibold text-slate-800 mb-5">{t.settings.schoolInformation}</h3>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {fields.map(f => (
               <div key={f.key} className={f.span ? 'col-span-2' : ''}>
                 <label className="block text-xs font-medium text-slate-500 mb-1">{f.label}</label>
@@ -1150,7 +1150,7 @@ export default function Settings() {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <input value={newYear.label} onChange={e => setNewYear(p => ({ ...p, label: e.target.value }))}
               placeholder={lbl('Label e.g. 2025/2026', 'Ex. 2025/2026')}
               className="col-span-2 sm:col-span-1 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500" />
@@ -1194,7 +1194,7 @@ export default function Settings() {
               );
             })}
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
             <select value={newTerm.academic_year_id} onChange={e => setNewTerm(p => ({ ...p, academic_year_id: e.target.value }))}
               className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
               {academicYears.map(y => <option key={y.id} value={y.id}>{y.label}</option>)}

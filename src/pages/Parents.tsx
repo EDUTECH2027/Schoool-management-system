@@ -231,7 +231,7 @@ export default function Parents() {
     <div className="space-y-6">
 
       {/* ── KPI cards ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {kpiCards.map(({ type, label, value, sub, icon: Icon, gradient, ring, glow }) => {
           const active = isCardActive(type);
           return (

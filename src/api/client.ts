@@ -37,6 +37,8 @@ export const api = {
     request<{ token: string; user: AuthUser }>('POST', '/auth/login', { email, password }),
   me:     () => request<AuthUser>('GET', '/auth/me'),
   logout: () => request<void>('POST', '/auth/logout'),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ message: string }>('PUT', '/auth/me/password', { currentPassword, newPassword }),
 
   // ── Dashboard ────────────────────────────────────────────────────
   dashboard: () => request<DashboardData>('GET', '/dashboard'),
@@ -257,6 +259,79 @@ export const api = {
   portalParentChildFees:      (sid: string) => request<FeeRecord[]>('GET', `/portal/parent/children/${sid}/fees`),
   portalParentChildReportCards:(sid: string) => request<ReportCard[]>('GET', `/portal/parent/children/${sid}/report-cards`),
   portalParentChildBehavior:  (sid: string) => request<BehaviorRecord[]>('GET', `/portal/parent/children/${sid}/behavior`),
+
+  // ── Platform (Super Admin) ─────────────────────────────────────────
+  platform: {
+    getDashboard: () => request<PlatformDashboardData>('GET', '/platform/dashboard'),
+
+    getSchools:      () => request<PlatformSchool[]>('GET', '/platform/schools'),
+    getSchool:       (id: string) => request<PlatformSchool>('GET', `/platform/schools/${id}`),
+    getSchoolSummary:(id: string) => request<SchoolSummary>('GET', `/platform/schools/${id}/summary`),
+    createSchool:    (data: CreateSchoolInput) =>
+      request<{ school: PlatformSchool; admin: { email: string; tempPassword: string } }>('POST', '/platform/schools', data),
+    updateSchool:    (id: string, data: Partial<PlatformSchool>) => request<PlatformSchool>('PUT', `/platform/schools/${id}`, data),
+    activateSchool:  (id: string) => request<PlatformSchool>('PATCH', `/platform/schools/${id}/activate`),
+    deactivateSchool:(id: string) => request<PlatformSchool>('PATCH', `/platform/schools/${id}/deactivate`),
+
+    getPlans:   () => request<SubscriptionPlan[]>('GET', '/platform/plans'),
+    createPlan: (data: Partial<SubscriptionPlan>) => request<SubscriptionPlan>('POST', '/platform/plans', data),
+    updatePlan: (id: string, data: Partial<SubscriptionPlan>) => request<SubscriptionPlan>('PUT', `/platform/plans/${id}`, data),
+    deletePlan: (id: string) => request<void>('DELETE', `/platform/plans/${id}`),
+
+    getUsers: () => request<PlatformUserRow[]>('GET', '/platform/users'),
+
+    getLogs: (params?: { limit?: number; offset?: number; action?: string }) =>
+      request<{ rows: SystemLog[]; total: number; limit: number; offset: number }>(
+        'GET', `/platform/logs${toQS(params as unknown as Record<string, string>)}`
+      ),
+
+    getAdmins:   () => request<PlatformAdmin[]>('GET', '/platform/admins'),
+    createAdmin: (data: { name: string; email: string; password: string; role?: string }) =>
+      request<PlatformAdmin>('POST', '/platform/admins', data),
+    updateAdmin: (id: string, data: Partial<PlatformAdmin>) => request<PlatformAdmin>('PUT', `/platform/admins/${id}`, data),
+    deleteAdmin: (id: string) => request<void>('DELETE', `/platform/admins/${id}`),
+
+    getAnnouncements:   () => request<PlatformAnnouncement[]>('GET', '/platform/announcements'),
+    createAnnouncement: (data: { title: string; body: string; is_pinned?: boolean }) =>
+      request<PlatformAnnouncement>('POST', '/platform/announcements', data),
+    updateAnnouncement: (id: string, data: Partial<PlatformAnnouncement>) =>
+      request<PlatformAnnouncement>('PUT', `/platform/announcements/${id}`, data),
+    deleteAnnouncement: (id: string) => request<void>('DELETE', `/platform/announcements/${id}`),
+
+    getSettings:    () => request<PlatformSettings>('GET', '/platform/settings'),
+    updateSettings: (data: Partial<PlatformSettings>) => request<PlatformSettings>('PUT', '/platform/settings', data),
+
+    getFeatures:   () => request<PlatformFeature[]>('GET', '/platform/features'),
+    createFeature: (data: { key: string; label: string; description?: string }) =>
+      request<PlatformFeature>('POST', '/platform/features', data),
+    deleteFeature: (id: string) => request<void>('DELETE', `/platform/features/${id}`),
+
+    getSchoolsByStatusReport: () => request<{ status: string; count: number }[]>('GET', '/platform/reports/schools-by-status'),
+    getRevenueByPlanReport:   () => request<{ plan_name: string; price: number; school_count: number; revenue: number }[]>('GET', '/platform/reports/revenue-by-plan'),
+    getSignupsByMonthReport:  () => request<{ month: string; count: number }[]>('GET', '/platform/reports/signups-by-month'),
+
+    exportBackup: async (): Promise<Blob> => {
+      const res = await fetch(`${BASE}/api/platform/backup/export`, {
+        headers: { Authorization: `Bearer ${getToken()}` },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.blob();
+    },
+    restoreBackup: async (schoolId: string, file: File): Promise<{ message: string }> => {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${BASE}/api/platform/backup/restore/${schoolId}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${getToken()}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? `HTTP ${res.status}`);
+      }
+      return res.json();
+    },
+  },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -269,8 +344,9 @@ function toQS(params?: Record<string, string>): string {
 // ── Minimal type stubs (mirrors existing types + API shapes) ─────────────────
 export interface AuthUser {
   id: string; name: string; email: string;
-  role: 'super_admin' | 'head_teacher' | 'teacher' | 'student' | 'parent';
+  role: 'super_admin' | 'head_teacher' | 'teacher' | 'student' | 'parent' | 'platform_owner' | 'platform_admin';
   initials: string; teacher_id?: string | null; student_id?: string | null; parent_id?: string | null;
+  must_change_password?: boolean;
 }
 export interface School { id: string; name: string; code: string; address: string; phone: string; email: string; head_teacher: string; motto: string; logo_url?: string; }
 export interface AcademicYear { id: string; label: string; start_date: string; end_date: string; is_current: number; }
@@ -303,3 +379,49 @@ export interface CreateUserInput { name: string; email: string; password: string
 export interface BehaviorRecord { id: string; student_id: string; class_id?: string | null; teacher_id?: string | null; date: string; category: 'positive' | 'negative' | 'neutral'; description: string; action_taken?: string | null; created_by?: string | null; student_name?: string; teacher_name?: string; created_at: string; }
 export interface Withdrawal { id: string; teacher_id: string; payroll_id?: string | null; amount: number; reason?: string | null; status: 'pending' | 'approved' | 'rejected'; reviewed_by?: string | null; reviewed_at?: string | null; notes?: string | null; teacher_name?: string; teacher_email?: string; created_at: string; }
 export interface MigrationResult { success: boolean; defaultPassword: string; result: { teachers: { created: number; skipped: number }; students: { created: number; skipped: number }; parents: { created: number; skipped: number }; }; }
+
+// ── Platform (Super Admin) types ──────────────────────────────────────────────
+export interface PlatformSchool {
+  id: string; name: string; code?: string | null; address?: string | null; phone?: string | null;
+  email: string; admin_name: string; admin_email: string; plan_id: string;
+  status: 'active' | 'inactive' | 'suspended' | 'archived';
+  subscription_started?: string; subscription_expiry?: string | null;
+  created_at: string; updated_at: string;
+  plan_name?: string; plan_price?: number;
+  students?: number; teachers?: number;
+}
+export interface CreateSchoolInput {
+  name: string; email: string; phone?: string; address?: string; plan_id: string;
+  admin_name: string; admin_email: string;
+}
+export interface SchoolSummary {
+  students: number; teachers: number; classes: number;
+  recentAnnouncements: { title: string; created_at: string }[];
+  fees: { collected: number | null; pending: number | null };
+}
+export interface SubscriptionPlan {
+  id: string; name: string; price: number; billing_cycle: 'monthly' | 'yearly';
+  max_students: number | null; max_teachers: number | null; features: string; is_custom: number;
+  school_count?: number; created_at: string; updated_at: string;
+}
+export interface PlatformUserRow {
+  id: string; name: string; email: string; role: string; initials: string; created_at: string;
+  school_id: string; school_name: string;
+}
+export interface SystemLog {
+  id: string; actor_type: string; actor_id: string | null; actor_name: string | null;
+  action: string; target_type: string | null; target_id: string | null; meta: string | null; created_at: string;
+}
+export interface PlatformAdmin {
+  id: string; name: string; email: string; role: 'platform_owner' | 'platform_admin'; initials: string; created_at: string;
+}
+export interface PlatformAnnouncement { id: string; title: string; body: string; is_pinned: number; created_at: string; updated_at: string; }
+export interface PlatformSettings { id: string; platform_name: string; logo_url?: string | null; support_email?: string | null; default_plan_id?: string | null; updated_at: string; }
+export interface PlatformFeature { id: string; key: string; label: string; description?: string | null; }
+export interface PlatformDashboardData {
+  totalSchools: number; activeSchools: number; inactiveSchools: number;
+  totalStudents: number; totalTeachers: number; totalParents: number; revenue: number;
+  schoolsByPlan: { name: string; count: number }[];
+  schoolsOverview: { month: string; active: number; new: number }[];
+  recentActivities: SystemLog[];
+}
