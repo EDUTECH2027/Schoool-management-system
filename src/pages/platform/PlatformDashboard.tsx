@@ -157,9 +157,9 @@ export default function PlatformDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_0.9fr] gap-6">
         {/* All Schools */}
-        <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-slate-100 dark:border-slate-700">
             <h3 className="font-semibold text-slate-800 dark:text-slate-100">All Schools</h3>
             <input
@@ -205,77 +205,79 @@ export default function PlatformDashboard() {
           </div>
         </div>
 
-        {/* Create New School */}
-        <div className="bg-indigo-600 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 flex items-center gap-2 text-white font-semibold">
-            <Plus size={18} /> Create New School
+        <div className="flex flex-col gap-6">
+          {/* Create New School */}
+          <div className="bg-indigo-600 rounded-xl overflow-hidden">
+            <div className="px-5 py-4 flex items-center gap-2 text-white font-semibold">
+              <Plus size={18} /> Create New School
+            </div>
+            <form onSubmit={submitCreate} className="bg-white dark:bg-slate-900 p-5 space-y-3">
+              {error && <p className="text-red-600 text-xs">{error}</p>}
+              {createResult && (
+                <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 text-xs text-green-800 dark:text-green-300">
+                  School created. Admin login: <strong>{createResult.email}</strong> / <strong>{createResult.tempPassword}</strong>
+                </div>
+              )}
+              <div>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">School Name *</label>
+                <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">School Email *</label>
+                <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Phone Number</label>
+                <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Plan *</label>
+                <select required value={form.plan_id} onChange={e => setForm({ ...form, plan_id: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option value="">Select plan</option>
+                  {plans.map(p => <option key={p.id} value={p.id}>{p.name} (${p.price}/mo)</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Admin Name *</label>
+                <input required value={form.admin_name} onChange={e => setForm({ ...form, admin_name: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Admin Email *</label>
+                <input required type="email" value={form.admin_email} onChange={e => setForm({ ...form, admin_email: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <button disabled={creating} type="submit"
+                className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium text-sm py-2.5 rounded-lg transition-colors">
+                <Plus size={16} /> {creating ? 'Creating...' : 'Create School'}
+              </button>
+            </form>
           </div>
-          <form onSubmit={submitCreate} className="bg-white dark:bg-slate-900 p-5 space-y-3">
-            {error && <p className="text-red-600 text-xs">{error}</p>}
-            {createResult && (
-              <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 text-xs text-green-800 dark:text-green-300">
-                School created. Admin login: <strong>{createResult.email}</strong> / <strong>{createResult.tempPassword}</strong>
+
+          {/* Recent Activities */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
+            <h3 className="text-slate-800 dark:text-slate-100 font-semibold mb-4">Recent System Activities</h3>
+            {(!stats?.recentActivities || stats.recentActivities.length === 0) ? (
+              <p className="text-slate-400 text-sm">No activity yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {stats.recentActivities.map(a => (
+                  <div key={a.id} className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 last:border-0 pb-3 last:pb-0">
+                    <div>
+                      <p className="text-sm text-slate-800 dark:text-slate-100">{a.action}</p>
+                      <p className="text-xs text-slate-400">{a.actor_name ?? 'System'}</p>
+                    </div>
+                    <span className="text-xs text-slate-400">{new Date(a.created_at).toLocaleString()}</span>
+                  </div>
+                ))}
               </div>
             )}
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-300">School Name *</label>
-              <input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-300">School Email *</label>
-              <input required type="email" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Phone Number</label>
-              <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Plan *</label>
-              <select required value={form.plan_id} onChange={e => setForm({ ...form, plan_id: e.target.value })}
-                className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                <option value="">Select plan</option>
-                {plans.map(p => <option key={p.id} value={p.id}>{p.name} (${p.price}/mo)</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Admin Name *</label>
-              <input required value={form.admin_name} onChange={e => setForm({ ...form, admin_name: e.target.value })}
-                className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Admin Email *</label>
-              <input required type="email" value={form.admin_email} onChange={e => setForm({ ...form, admin_email: e.target.value })}
-                className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-            </div>
-            <button disabled={creating} type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium text-sm py-2.5 rounded-lg transition-colors">
-              <Plus size={16} /> {creating ? 'Creating...' : 'Create School'}
-            </button>
-          </form>
-        </div>
-      </div>
-
-      {/* Recent Activities */}
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
-        <h3 className="text-slate-800 dark:text-slate-100 font-semibold mb-4">Recent System Activities</h3>
-        {(!stats?.recentActivities || stats.recentActivities.length === 0) ? (
-          <p className="text-slate-400 text-sm">No activity yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {stats.recentActivities.map(a => (
-              <div key={a.id} className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 last:border-0 pb-3 last:pb-0">
-                <div>
-                  <p className="text-sm text-slate-800 dark:text-slate-100">{a.action}</p>
-                  <p className="text-xs text-slate-400">{a.actor_name ?? 'System'}</p>
-                </div>
-                <span className="text-xs text-slate-400">{new Date(a.created_at).toLocaleString()}</span>
-              </div>
-            ))}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

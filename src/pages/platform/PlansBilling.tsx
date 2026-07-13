@@ -72,7 +72,7 @@ export default function PlansBilling() {
               <ul className="mt-3 space-y-1 text-sm text-slate-600 dark:text-slate-300">
                 <li>{p.max_students ? `Up to ${p.max_students} students` : 'Unlimited students'}</li>
                 <li>{p.max_teachers ? `Up to ${p.max_teachers} teachers` : 'Unlimited teachers'}</li>
-                <li className="text-xs text-slate-400 mt-2">{JSON.parse(p.features || '[]').join(', ')}</li>
+                <li className="text-xs text-slate-400 mt-2">{(p.features ?? []).join(', ')}</li>
               </ul>
               <p className="text-xs text-slate-400 mt-3">{p.school_count ?? 0} school(s) on this plan</p>
             </div>

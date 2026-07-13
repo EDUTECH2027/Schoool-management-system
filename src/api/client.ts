@@ -286,9 +286,9 @@ export const api = {
       ),
 
     getAdmins:   () => request<PlatformAdmin[]>('GET', '/platform/admins'),
-    createAdmin: (data: { name: string; email: string; password: string; role?: string }) =>
+    createAdmin: (data: { name: string; email: string; password: string; role?: string; permissions?: string[] }) =>
       request<PlatformAdmin>('POST', '/platform/admins', data),
-    updateAdmin: (id: string, data: Partial<PlatformAdmin>) => request<PlatformAdmin>('PUT', `/platform/admins/${id}`, data),
+    updateAdmin: (id: string, data: Partial<PlatformAdmin> & { permissions?: string[] }) => request<PlatformAdmin>('PUT', `/platform/admins/${id}`, data),
     deleteAdmin: (id: string) => request<void>('DELETE', `/platform/admins/${id}`),
 
     getAnnouncements:   () => request<PlatformAnnouncement[]>('GET', '/platform/announcements'),
@@ -401,7 +401,7 @@ export interface SchoolSummary {
 }
 export interface SubscriptionPlan {
   id: string; name: string; price: number; billing_cycle: 'monthly' | 'yearly';
-  max_students: number | null; max_teachers: number | null; features: string; is_custom: number;
+  max_students: number | null; max_teachers: number | null; features: string[]; is_custom: number;
   school_count?: number; created_at: string; updated_at: string;
 }
 export interface PlatformUserRow {
@@ -413,7 +413,7 @@ export interface SystemLog {
   action: string; target_type: string | null; target_id: string | null; meta: string | null; created_at: string;
 }
 export interface PlatformAdmin {
-  id: string; name: string; email: string; role: 'platform_owner' | 'platform_admin'; initials: string; created_at: string;
+  id: string; name: string; email: string; role: 'platform_owner' | 'platform_admin'; initials: string; permissions: string[]; created_at: string;
 }
 export interface PlatformAnnouncement { id: string; title: string; body: string; is_pinned: number; created_at: string; updated_at: string; }
 export interface PlatformSettings { id: string; platform_name: string; logo_url?: string | null; support_email?: string | null; default_plan_id?: string | null; updated_at: string; }
