@@ -7,10 +7,6 @@ import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
 import { useLanguage } from '../i18n/LanguageContext';
 
-const DEMO = [
-  { role: 'Administrator', initials: 'AD', color: 'bg-indigo-600', email: 'admin@school.com', password: 'Admin@2025' },
-];
-
 const FEATURES = [
   { icon: Users,      en: 'Manage students, teachers & staff',          fr: 'Gérer élèves, enseignants & personnel' },
   { icon: BookOpen,   en: 'Track grades, assessments & report cards',   fr: 'Suivre notes, évaluations & bulletins' },
@@ -28,8 +24,6 @@ export default function Login() {
   const [showPw, setShowPw]     = useState(false);
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
-
-  const fill = (d: typeof DEMO[0]) => { setEmail(d.email); setPassword(d.password); setError(''); };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -270,13 +264,6 @@ export default function Login() {
                 )}
               </button>
             </form>
-
-            {/* Demo accounts */}
-            <div className="mt-8">
-              
-
-              
-            </div>
 
             {/* Footer */}
             <p className="text-center text-[11px] text-slate-400 mt-8">
