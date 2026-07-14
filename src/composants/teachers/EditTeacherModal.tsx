@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, Save, CheckCircle } from 'lucide-react';
 import type { Teacher } from '../../types';
-import { subjects } from '../../data/mockData';
-import { api, type ClassRecord } from '../../api/client';
+import { api, type ClassRecord, type Subject } from '../../api/client';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 interface Props {
@@ -58,10 +57,12 @@ export default function EditTeacherModal({ teacher, onClose, onSave }: Props) {
   const initialQual = QUALIFICATIONS.includes(teacher.qualification) ? teacher.qualification : 'Other';
   const initialCustom = QUALIFICATIONS.includes(teacher.qualification) ? '' : teacher.qualification;
 
-  const [classList, setClassList] = useState<ClassRecord[]>([]);
+  const [classList, setClassList]     = useState<ClassRecord[]>([]);
+  const [subjectList, setSubjectList] = useState<Subject[]>([]);
 
   useEffect(() => {
     api.getClasses().then(setClassList).catch(console.error);
+    api.getSubjects().then(setSubjectList).catch(console.error);
   }, []);
 
   const [form, setForm] = useState({
@@ -221,7 +222,7 @@ export default function EditTeacherModal({ teacher, onClose, onSave }: Props) {
                   {t.teachers.subjects}<span className="text-red-500 ml-0.5">*</span>
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  {subjects.map(sub => {
+                  {subjectList.map(sub => {
                     const isSelected = form.selectedSubjects.includes(sub.name);
                     const colorCls   = subjectColors[sub.name] ?? 'border-slate-300 bg-slate-50 text-slate-700';
                     return (

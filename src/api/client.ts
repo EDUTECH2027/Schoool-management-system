@@ -31,6 +31,19 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.json();
 }
 
+// Reference data (subjects, grade levels) rarely changes but is independently
+// re-fetched by many pages — cache per session and invalidate on mutation
+// instead of hitting the network every time a page mounts.
+const refCache = new Map<string, Promise<unknown>>();
+
+function cachedGet<T>(key: string, path: string): Promise<T> {
+  if (!refCache.has(key)) {
+    const p = request<T>('GET', path).catch(err => { refCache.delete(key); throw err; });
+    refCache.set(key, p);
+  }
+  return refCache.get(key) as Promise<T>;
+}
+
 export const api = {
   // ── Auth ─────────────────────────────────────────────────────────
   login:  (email: string, password: string) =>
@@ -59,13 +72,13 @@ export const api = {
     request<Term>('POST', '/academic/terms', data),
   updateTerm:  (id: string, data: Partial<Term>) =>
     request<Term>('PUT', `/academic/terms/${id}`, data),
-  getGradeLevels: () => request<GradeLevel[]>('GET', '/academic/grade-levels'),
+  getGradeLevels: () => cachedGet<GradeLevel[]>('grade-levels', '/academic/grade-levels'),
 
   // ── Subjects ─────────────────────────────────────────────────────
-  getSubjects:    () => request<Subject[]>('GET', '/subjects'),
-  createSubject:  (data: Partial<Subject>) => request<Subject>('POST', '/subjects', data),
-  updateSubject:  (id: string, data: Partial<Subject>) => request<Subject>('PUT', `/subjects/${id}`, data),
-  deleteSubject:  (id: string) => request<void>('DELETE', `/subjects/${id}`),
+  getSubjects:    () => cachedGet<Subject[]>('subjects', '/subjects'),
+  createSubject:  (data: Partial<Subject>) => request<Subject>('POST', '/subjects', data).then(r => { refCache.delete('subjects'); return r; }),
+  updateSubject:  (id: string, data: Partial<Subject>) => request<Subject>('PUT', `/subjects/${id}`, data).then(r => { refCache.delete('subjects'); return r; }),
+  deleteSubject:  (id: string) => request<void>('DELETE', `/subjects/${id}`).then(r => { refCache.delete('subjects'); return r; }),
 
   // ── Teachers ─────────────────────────────────────────────────────
   getTeachers:   (params?: Record<string, string>) =>
@@ -136,6 +149,14 @@ export const api = {
   updateReportCard:     (id: string, data: unknown) => request<ReportCard>('PUT', `/report-cards/${id}`, data),
   setReportCardStatus:  (id: string, status: string) =>
     request<ReportCard>('PATCH', `/report-cards/${id}/status`, { status }),
+
+  // ── Certificates ─────────────────────────────────────────────────
+  getCertificates: (params?: Record<string, string>) =>
+    request<SavedCertificate[]>('GET', `/certificates${toQS(params)}`),
+  getCertificate:  (id: string) => request<SavedCertificate>('GET', `/certificates/${id}`),
+  createCertificate: (data: CertificateInput) => request<SavedCertificate>('POST', '/certificates', data),
+  updateCertificate: (id: string, data: Partial<CertificateInput>) => request<SavedCertificate>('PUT', `/certificates/${id}`, data),
+  deleteCertificate: (id: string) => request<void>('DELETE', `/certificates/${id}`),
 
   // ── Fees ─────────────────────────────────────────────────────────
   getFees:        (params?: Record<string, string>) =>
@@ -379,6 +400,20 @@ export interface CreateUserInput { name: string; email: string; password: string
 export interface BehaviorRecord { id: string; student_id: string; class_id?: string | null; teacher_id?: string | null; date: string; category: 'positive' | 'negative' | 'neutral'; description: string; action_taken?: string | null; created_by?: string | null; student_name?: string; teacher_name?: string; created_at: string; }
 export interface Withdrawal { id: string; teacher_id: string; payroll_id?: string | null; amount: number; reason?: string | null; status: 'pending' | 'approved' | 'rejected'; reviewed_by?: string | null; reviewed_at?: string | null; notes?: string | null; teacher_name?: string; teacher_email?: string; created_at: string; }
 export interface MigrationResult { success: boolean; defaultPassword: string; result: { teachers: { created: number; skipped: number }; students: { created: number; skipped: number }; parents: { created: number; skipped: number }; }; }
+export interface SavedCertificate {
+  id: string; student_id: string; student_name?: string | null; student_number?: string | null; class_name?: string | null;
+  doc_type_id: string; theme_id: string; kind: 'certificate' | 'attestation';
+  doc_label: string; body_html: string; recipient_name: string;
+  issue_date: string; cert_number: string; signatory_name?: string | null; signatory_title?: string | null;
+  style?: unknown; created_by?: string | null; created_at: string; updated_at: string;
+}
+export interface CertificateInput {
+  studentId: string; studentName?: string; studentNumber?: string; className?: string;
+  docTypeId: string; themeId: string; kind: 'certificate' | 'attestation';
+  docLabel: string; bodyHtml: string; recipientName: string;
+  issueDate: string; certNumber: string; signatoryName?: string; signatoryTitle?: string;
+  style?: unknown;
+}
 
 // ── Platform (Super Admin) types ──────────────────────────────────────────────
 export interface PlatformSchool {

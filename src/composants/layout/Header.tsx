@@ -36,6 +36,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
     '/attendance':        t.header.attendance,
     '/assessments':       t.header.assessments,
     '/report-cards':      t.header.reportCards,
+    '/certificates':      t.header.certificates,
     '/fees':              t.header.fees,
     '/timetable':         t.header.timetable,
     '/parents':           t.header.parents,

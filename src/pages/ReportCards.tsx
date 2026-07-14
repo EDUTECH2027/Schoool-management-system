@@ -381,7 +381,7 @@ export default function ReportCards() {
         },
         margin: { left: X, right: X },
       });
-      y = (doc as any).lastAutoTable.finalY + 6;
+      y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 6;
 
       // ── Summary boxes ─────────────────────────────────────────
       const BW = (W - 8) / 3;

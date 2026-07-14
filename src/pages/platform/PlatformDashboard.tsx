@@ -10,31 +10,33 @@ const DONUT_COLORS = ['#4f46e5', '#0ea5e9', '#f59e0b', '#10b981', '#a855f7'];
 
 function SchoolsByPlanDonut({ data }: { data: { name: string; count: number }[] }) {
   const total = data.reduce((s, d) => s + d.count, 0) || 1;
-  let cumulative = 0;
   const R = 15.9155;
   const circumference = 2 * Math.PI * R;
+
+  const segments: { name: string; dash: number; offset: number }[] = [];
+  let cumulative = 0;
+  for (const d of data) {
+    const pct = (d.count / total) * 100;
+    const dash = (pct / 100) * circumference;
+    segments.push({ name: d.name, dash, offset: -((cumulative / 100) * circumference) });
+    cumulative += pct;
+  }
 
   return (
     <div className="flex items-center gap-6">
       <div className="relative w-36 h-36 shrink-0">
         <svg viewBox="0 0 36 36" className="w-36 h-36 -rotate-90">
           <circle cx="18" cy="18" r={R} fill="none" stroke="#e2e8f0" strokeWidth="4" />
-          {data.map((d, i) => {
-            const pct = (d.count / total) * 100;
-            const dash = (pct / 100) * circumference;
-            const offset = -((cumulative / 100) * circumference);
-            cumulative += pct;
-            return (
-              <circle
-                key={d.name}
-                cx="18" cy="18" r={R} fill="none"
-                stroke={DONUT_COLORS[i % DONUT_COLORS.length]}
-                strokeWidth="4"
-                strokeDasharray={`${dash} ${circumference - dash}`}
-                strokeDashoffset={offset}
-              />
-            );
-          })}
+          {segments.map((s, i) => (
+            <circle
+              key={s.name}
+              cx="18" cy="18" r={R} fill="none"
+              stroke={DONUT_COLORS[i % DONUT_COLORS.length]}
+              strokeWidth="4"
+              strokeDasharray={`${s.dash} ${circumference - s.dash}`}
+              strokeDashoffset={s.offset}
+            />
+          ))}
         </svg>
         <span className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{total}</span>

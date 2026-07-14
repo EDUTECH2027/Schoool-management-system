@@ -15,6 +15,7 @@ import Announcements   from '../pages/Announcements';
 import EmailAlerts     from '../pages/EmailAlerts';
 import DiscussionForums from '../pages/DiscussionForums';
 import TeacherPayment  from '../pages/TeacherPayment';
+import Certificates    from '../pages/Certificates';
 import UserManagement  from '../pages/admin/UserManagement';
 import AdminWithdrawals from '../pages/admin/AdminWithdrawals';
 
@@ -30,6 +31,7 @@ export default function AdminRoutes() {
         <Route path="attendance"        element={<Attendance       />} />
         <Route path="assessments"       element={<Assessments      />} />
         <Route path="report-cards"      element={<ReportCards      />} />
+        <Route path="certificates"      element={<Certificates     />} />
         <Route path="fees"              element={<Fees             />} />
         <Route path="timetable"         element={<Timetable        />} />
         <Route path="parents"           element={<Parents          />} />

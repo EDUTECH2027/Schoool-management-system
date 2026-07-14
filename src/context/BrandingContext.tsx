@@ -51,7 +51,8 @@ export function BrandingProvider({ children }: { children: ReactNode }) {
   const setLogoUrl = (url: string | null) => {
     setLogoUrlState(url);
     try {
-      url ? localStorage.setItem('brand_logo', url) : localStorage.removeItem('brand_logo');
+      if (url) localStorage.setItem('brand_logo', url);
+      else localStorage.removeItem('brand_logo');
     } catch { /* quota exceeded — logo still shows in session */ }
   };
 

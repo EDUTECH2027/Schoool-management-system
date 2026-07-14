@@ -4,6 +4,7 @@ import {
   LayoutDashboard, Users, BookOpen, GraduationCap,
   ClipboardCheck, FileText, Award, Wallet, Calendar, UserRound, Settings,
   MessageSquare, Megaphone, Mail, MessageCircle, ChevronDown, BadgeDollarSign, ShieldCheck, ArrowDownCircle,
+  Stamp,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -34,6 +35,7 @@ export default function Sidebar() {
     { label: t.nav.attendance,   to: '/attendance',   icon: ClipboardCheck   },
     { label: t.nav.assessments,  to: '/assessments',  icon: FileText         },
     { label: t.nav.reportCards,  to: '/report-cards', icon: Award            },
+    { label: t.nav.certificates, to: '/certificates', icon: Stamp            },
     { label: t.nav.fees,         to: '/fees',         icon: Wallet           },
     { label: t.nav.timetable,    to: '/timetable',    icon: Calendar         },
     { label: t.nav.parents,      to: '/parents',      icon: UserRound        },

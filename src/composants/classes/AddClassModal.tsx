@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { X, BookOpen, CheckCircle } from 'lucide-react';
 import type { Class, Teacher } from '../../types';
-import { gradeLevels } from '../../data/mockData';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { api } from '../../api/client';
+import { api, type GradeLevel } from '../../api/client';
 import { mapTeacher } from '../../api/mappers';
 
 interface Props {
@@ -51,23 +50,29 @@ function Field({
 export default function AddClassModal({ onClose, onAdd }: Props) {
   const { t, lang } = useLanguage();
 
-  const [teachers, setTeachers] = useState<Teacher[]>([]);
-
-  useEffect(() => {
-    api.getTeachers({ isActive: 'true' })
-      .then(data => setTeachers(data.map(mapTeacher)))
-      .catch(console.error);
-  }, []);
-
+  const [teachers, setTeachers]       = useState<Teacher[]>([]);
+  const [gradeLevels, setGradeLevels] = useState<GradeLevel[]>([]);
   const [form, setForm] = useState<FormState>({
     name: '',
-    gradeLevelId: gradeLevels[2]?.id ?? gradeLevels[0]?.id ?? '',
+    gradeLevelId: '',
     room: '',
     capacity: '40',
     classTeacherId: '',
   });
   const [errors, setErrors] = useState<Errors>({});
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    api.getTeachers({ isActive: 'true' })
+      .then(data => setTeachers(data.map(mapTeacher)))
+      .catch(console.error);
+    api.getGradeLevels()
+      .then(data => {
+        setGradeLevels(data);
+        setForm(prev => prev.gradeLevelId ? prev : { ...prev, gradeLevelId: data[2]?.id ?? data[0]?.id ?? '' });
+      })
+      .catch(console.error);
+  }, []);
 
   const set = (field: keyof FormState, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));

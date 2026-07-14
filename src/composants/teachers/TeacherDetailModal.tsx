@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   X, Mail, Phone, Calendar, BookOpen, GraduationCap,
   ClipboardCheck, Clock, Users,
 } from 'lucide-react';
-import type { Teacher, TeacherAttendance, TeacherScheduleEntry } from '../../types';
-import { classes, students } from '../../data/mockData';
+import type { Teacher, TeacherAttendance, TeacherScheduleEntry, Class, Student } from '../../types';
+import { api } from '../../api/client';
+import { mapClass, mapStudent } from '../../api/mappers';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { StatusBadge } from '../ui/Badge';
 
@@ -56,6 +57,13 @@ const subjectColors: Record<string, string> = {
 export default function TeacherDetailModal({ teacher, attendance, schedule, onClose }: Props) {
   const { t, lang } = useLanguage();
   const [tab, setTab] = useState<Tab>('overview');
+  const [classes, setClasses]   = useState<Class[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+
+  useEffect(() => {
+    api.getClasses().then(data => setClasses(data.map(mapClass))).catch(console.error);
+    api.getStudents().then(data => setStudents(data.map(mapStudent))).catch(console.error);
+  }, []);
 
   const gradient = bannerGradients[parseInt(teacher.id.replace(/\D/g, '') || '0') % bannerGradients.length];
 
