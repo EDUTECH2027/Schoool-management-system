@@ -277,6 +277,7 @@ export const api = {
     request<Mark[]>('GET', `/portal/parent/children/${sid}/marks${termId ? `?termId=${termId}` : ''}`),
   portalParentChildAttendance:(sid: string, params?: { from?: string; to?: string }) =>
     request<AttendanceRecord[]>('GET', `/portal/parent/children/${sid}/attendance${toQS(params as Record<string, string>)}`),
+  portalParentChildTimetable: (sid: string) => request<ScheduleEntry[]>('GET', `/portal/parent/children/${sid}/timetable`),
   portalParentChildFees:      (sid: string) => request<FeeRecord[]>('GET', `/portal/parent/children/${sid}/fees`),
   portalParentChildReportCards:(sid: string) => request<ReportCard[]>('GET', `/portal/parent/children/${sid}/report-cards`),
   portalParentChildBehavior:  (sid: string) => request<BehaviorRecord[]>('GET', `/portal/parent/children/${sid}/behavior`),
@@ -382,9 +383,9 @@ export interface Parent { id: string; name: string; email?: string; phone: strin
 export interface AttendanceRecord { id: string; student_id: string; student_name: string; student_number: string; class_id: string; class_name: string; date: string; status: string; remarks?: string; }
 export interface AttendanceStat { student_id: string; student_name: string; present: number; absent: number; late: number; excused: number; total: number; }
 export interface TeacherAttendanceRecord { id: string; teacher_id: string; date: string; status: string; remarks?: string; first_name: string; last_name: string; }
-export interface ScheduleEntry { id: string; teacher_id: string; day: string; period_key: string; period_label: string; time: string; class_id: string; class_name: string; subject_name: string; room: string; first_name?: string; last_name?: string; }
+export interface ScheduleEntry { id: string; teacher_id: string; day: string; period_key: string; period_label: string; time: string; class_id: string; class_name: string; subject_name: string; room: string; first_name?: string; last_name?: string; teacher_name?: string; }
 export interface Mark { id: string; student_id: string; student_name: string; subject_id: string; subject_name: string; term_id: string; class_id: string; ca_score: number; exam_score: number; total_score: number; grade: string; remark: string; }
-export interface ReportCard { id: string; student_id: string; student_name: string; term_name: string; academic_year: string; class_name: string; percentage: number; class_position: number; status: string; conduct: string; entries: ReportCardEntry[]; }
+export interface ReportCard { id: string; student_id: string; student_name: string; term_name: string; academic_year: string; class_name: string; percentage: number; class_position: number; out_of?: number; status: string; conduct: string; entries: ReportCardEntry[]; }
 export interface ReportCardEntry { subject_id: string; subject_name: string; ca_score: number; exam_score: number; total_score: number; grade: string; position?: number; teacher_comment?: string; }
 export interface Payment { id: string; fee_record_id: string; amount: number; method: string; reference: string; payment_date: string; receipt_number: string; }
 export interface FeeRecord { id: string; student_id: string; student_name: string; student_number: string; class_id: string; class_name: string; fee_name: string; academic_year: string; amount_due: number; amount_paid: number; balance: number; status: string; due_date: string; payments: Payment[]; }

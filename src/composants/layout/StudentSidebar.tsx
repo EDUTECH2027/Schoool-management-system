@@ -1,16 +1,18 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, UserRound, FileText, ClipboardCheck, Calendar, GraduationCap,
+  LayoutDashboard, UserRound, FileText, ClipboardCheck, Calendar, GraduationCap, LogOut,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useBranding } from '../../context/BrandingContext';
+import { useAuth } from '../../context/AuthContext';
 
 const ACCENT = 'bg-emerald-600';
 
 export default function StudentSidebar() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const { logoUrl, schoolName, schoolSub } = useBranding();
+  const { logout } = useAuth();
 
   const nav = [
     { label: t.nav.dashboard,           to: '/student/dashboard',  icon: LayoutDashboard },
@@ -57,6 +59,17 @@ export default function StudentSidebar() {
           </NavLink>
         ))}
       </nav>
+
+      <div className="px-3 py-4 border-t border-slate-700">
+        <button
+          type="button"
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-400 hover:bg-red-950/40 hover:text-red-400 transition-colors"
+        >
+          <LogOut size={17} />
+          {lang === 'fr' ? 'Se déconnecter' : 'Sign out'}
+        </button>
+      </div>
     </aside>
   );
 }
