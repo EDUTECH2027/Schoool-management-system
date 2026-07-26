@@ -147,6 +147,8 @@ export const api = {
     request<{ generated: number }>('POST', '/report-cards/generate', data),
   createReportCard:     (data: unknown) => request<ReportCard>('POST', '/report-cards', data),
   updateReportCard:     (id: string, data: unknown) => request<ReportCard>('PUT', `/report-cards/${id}`, data),
+  getAnnualSummary:     (params: { studentId: string; academicYearId: string }) =>
+    request<AnnualSummary>('GET', `/report-cards/annual-summary${toQS(params)}`),
   setReportCardStatus:  (id: string, status: string) =>
     request<ReportCard>('PATCH', `/report-cards/${id}/status`, { status }),
 
@@ -268,6 +270,8 @@ export const api = {
   portalStudentTimetable:    () => request<ScheduleEntry[]>('GET', '/portal/student/timetable'),
   portalStudentReportCards:  () => request<ReportCard[]>('GET', '/portal/student/report-cards'),
   portalStudentBehavior:     () => request<BehaviorRecord[]>('GET', '/portal/student/behavior'),
+  portalStudentAnnualAverage:(academicYearId?: string) =>
+    request<AnnualSummary>('GET', `/portal/student/annual-average${academicYearId ? `?academicYearId=${academicYearId}` : ''}`),
 
   // ── Portal: Parent ────────────────────────────────────────────────
   portalParentProfile:        () => request<Parent>('GET', '/portal/parent/profile'),
@@ -281,6 +285,8 @@ export const api = {
   portalParentChildFees:      (sid: string) => request<FeeRecord[]>('GET', `/portal/parent/children/${sid}/fees`),
   portalParentChildReportCards:(sid: string) => request<ReportCard[]>('GET', `/portal/parent/children/${sid}/report-cards`),
   portalParentChildBehavior:  (sid: string) => request<BehaviorRecord[]>('GET', `/portal/parent/children/${sid}/behavior`),
+  portalParentChildAnnualAverage:(sid: string, academicYearId?: string) =>
+    request<AnnualSummary>('GET', `/portal/parent/children/${sid}/annual-average${academicYearId ? `?academicYearId=${academicYearId}` : ''}`),
 
   // ── Platform (Super Admin) ─────────────────────────────────────────
   platform: {
@@ -374,7 +380,7 @@ export interface School { id: string; name: string; code: string; address: strin
 export interface AcademicYear { id: string; label: string; start_date: string; end_date: string; is_current: number; }
 export interface Term { id: string; academic_year_id: string; name: string; start_date: string; end_date: string; is_current: number; }
 export interface GradeLevel { id: string; name: string; sort_order: number; }
-export interface Subject { id: string; name: string; code: string; }
+export interface Subject { id: string; name: string; code: string; coefficient: number; }
 export interface Teacher { id: string; first_name: string; last_name: string; email: string; phone: string; gender: string; subjects: string[]; class_assigned?: string; qualification: string; join_date: string; is_active: number; }
 export interface TeacherInput { firstName?: string; lastName?: string; email?: string; phone?: string; gender?: string; subjects?: string[]; classAssigned?: string; qualification?: string; joinDate?: string; isActive?: boolean; }
 export interface ClassRecord { id: string; grade_level_id: string; grade_level_name: string; name: string; capacity: number; room: string; class_teacher_id?: string; class_teacher_name?: string; enrolled: number; }
@@ -385,8 +391,9 @@ export interface AttendanceStat { student_id: string; student_name: string; pres
 export interface TeacherAttendanceRecord { id: string; teacher_id: string; date: string; status: string; remarks?: string; first_name: string; last_name: string; }
 export interface ScheduleEntry { id: string; teacher_id: string; day: string; period_key: string; period_label: string; time: string; class_id: string; class_name: string; subject_name: string; room: string; first_name?: string; last_name?: string; teacher_name?: string; }
 export interface Mark { id: string; student_id: string; student_name: string; subject_id: string; subject_name: string; term_id: string; class_id: string; ca_score: number; exam_score: number; total_score: number; grade: string; remark: string; }
-export interface ReportCard { id: string; student_id: string; student_name: string; term_name: string; academic_year: string; class_name: string; percentage: number; class_position: number; out_of?: number; status: string; conduct: string; entries: ReportCardEntry[]; }
-export interface ReportCardEntry { subject_id: string; subject_name: string; ca_score: number; exam_score: number; total_score: number; grade: string; position?: number; teacher_comment?: string; }
+export interface ReportCard { id: string; student_id: string; student_name: string; term_name: string; academic_year: string; class_name: string; percentage: number; sequence1_average?: number; sequence2_average?: number; class_position: number; out_of?: number; status: string; conduct: string; entries: ReportCardEntry[]; }
+export interface ReportCardEntry { subject_id: string; subject_name: string; ca_score: number; exam_score: number; total_score: number; coefficient?: number; grade: string; position?: number; teacher_comment?: string; }
+export interface AnnualSummary { terms: { first: number | null; second: number | null; third: number | null }; termsFound: number; finalAverage: number | null; }
 export interface Payment { id: string; fee_record_id: string; amount: number; method: string; reference: string; payment_date: string; receipt_number: string; }
 export interface FeeRecord { id: string; student_id: string; student_name: string; student_number: string; class_id: string; class_name: string; fee_name: string; academic_year: string; amount_due: number; amount_paid: number; balance: number; status: string; due_date: string; payments: Payment[]; }
 export interface FeesSummary { total_due: number; total_collected: number; total_pending: number; paid_count: number; partial_count: number; overdue_count: number; total_records: number; }

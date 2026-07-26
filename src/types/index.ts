@@ -77,6 +77,7 @@ export interface Subject {
   id: string;
   name: string;
   code: string;
+  coefficient: number;
 }
 
 export interface Student {
@@ -143,6 +144,7 @@ export interface ReportCardEntry {
   caScore: number;
   examScore: number;
   totalScore: number;
+  coefficient: number;
   grade: string;
   remark: string;
   position: number;
@@ -161,6 +163,8 @@ export interface ReportCard {
   totalMarksObtained: number;
   totalMarksPossible: number;
   percentage: number;
+  sequence1Average: number;
+  sequence2Average: number;
   classPosition: number;
   outOf: number;
   daysPresent: number;

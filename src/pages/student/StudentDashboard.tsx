@@ -5,7 +5,7 @@ import {
   ChevronRight, Clock, MapPin, Megaphone, Pin, CheckCircle2, CircleDashed, Timer,
 } from 'lucide-react';
 import { api } from '../../api/client';
-import type { Student, ScheduleEntry, ReportCard, Announcement } from '../../api/client';
+import type { Student, ScheduleEntry, ReportCard, Announcement, AnnualSummary } from '../../api/client';
 
 const DOW = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -85,6 +85,7 @@ export default function StudentDashboard() {
   const [attThis, setAttThis] = useState<{ status: string }[]>([]);
   const [attPrev, setAttPrev] = useState<{ status: string } []>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [annualSummary, setAnnualSummary] = useState<AnnualSummary | null>(null);
 
   useEffect(() => {
     const now = new Date();
@@ -98,6 +99,7 @@ export default function StudentDashboard() {
     api.portalStudentAttendance({ from: firstOfThis }).then(setAttThis).catch(() => {});
     api.portalStudentAttendance({ from: firstOfPrev, to: lastOfPrev }).then(setAttPrev).catch(() => {});
     api.getAnnouncements({ audience: 'students' }).then(setAnnouncements).catch(() => {});
+    api.portalStudentAnnualAverage().then(setAnnualSummary).catch(() => {});
   }, []);
 
   const now = new Date();
@@ -165,7 +167,9 @@ export default function StudentDashboard() {
     },
     {
       key: 'score', label: 'Average Score', icon: Award, bg: 'bg-violet-200 dark:bg-violet-500/70',
-      value: `${avgScorePct}%`, delta: avgScoreDelta, sub: positionLabel ? `Class position ${positionLabel}` : 'No report card yet',
+      value: `${avgScorePct}%`, delta: avgScoreDelta,
+      sub: (positionLabel ? `Class position ${positionLabel}` : 'No report card yet')
+        + (annualSummary?.finalAverage != null ? ` · Annual ${annualSummary.finalAverage}%` : ''),
       to: '/student/marks',
     },
   ];

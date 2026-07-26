@@ -5,7 +5,7 @@ import {
   Wallet, Megaphone, Pin, ArrowUpRight,
 } from 'lucide-react';
 import { api } from '../../api/client';
-import type { Student, Mark, ScheduleEntry, AttendanceRecord, ReportCard, BehaviorRecord, FeeRecord, Announcement } from '../../api/client';
+import type { Student, Mark, ScheduleEntry, AttendanceRecord, ReportCard, BehaviorRecord, FeeRecord, Announcement, AnnualSummary } from '../../api/client';
 
 const WEEKDAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const DOW = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -63,6 +63,7 @@ export default function ParentDashboard() {
   const [behavior, setBehavior] = useState<BehaviorRecord[]>([]);
   const [fees, setFees] = useState<FeeRecord[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [annualSummary, setAnnualSummary] = useState<AnnualSummary | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
 
   useEffect(() => {
@@ -84,6 +85,7 @@ export default function ParentDashboard() {
     api.portalParentChildReportCards(selectedId).then(setReportCards).catch(() => setReportCards([]));
     api.portalParentChildBehavior(selectedId).then(setBehavior).catch(() => setBehavior([]));
     api.portalParentChildFees(selectedId).then(setFees).catch(() => setFees([]));
+    api.portalParentChildAnnualAverage(selectedId).then(setAnnualSummary).catch(() => setAnnualSummary(null));
   }, [selectedId]);
 
   const selectedChild = children.find(c => c.id === selectedId) ?? null;
@@ -132,7 +134,12 @@ export default function ParentDashboard() {
     .slice(0, 4), [fees]);
 
   const statTiles = [
-    { key: 'average', label: 'Average', sub: posLabel ? `Position ${posLabel}` : 'All grades', value: avgPct, bar: 'bg-indigo-500', to: `/parent/children/${selectedId}/marks` },
+    {
+      key: 'average', label: 'Average',
+      sub: (posLabel ? `Position ${posLabel}` : 'All grades')
+        + (annualSummary?.finalAverage != null ? ` · Annual ${annualSummary.finalAverage}%` : ''),
+      value: avgPct, bar: 'bg-indigo-500', to: `/parent/children/${selectedId}/marks`,
+    },
     { key: 'attendance', label: 'Attendance', sub: 'This month', value: attPct, bar: 'bg-sky-500', to: `/parent/children/${selectedId}/attendance` },
     { key: 'behavior', label: 'Behavior', sub: 'All behavior', value: behaviorPct, bar: 'bg-emerald-500', to: `/parent/children/${selectedId}` },
   ];

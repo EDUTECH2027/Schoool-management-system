@@ -65,7 +65,7 @@ export function mapTerm(t: Raw): Term {
 }
 
 export function mapSubject(s: Raw): Subject {
-  return { id: s.id, name: s.name ?? '', code: s.code ?? '' };
+  return { id: s.id, name: s.name ?? '', code: s.code ?? '', coefficient: Number(s.coefficient ?? 1) };
 }
 
 export function mapPayment(p: Raw): Payment {

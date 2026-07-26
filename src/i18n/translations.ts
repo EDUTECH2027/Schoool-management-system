@@ -112,7 +112,7 @@ export interface Translations {
     headTeacher: string; motto: string;
     feeSchedule: string; installment: string; totalAmount: string; feeScheduleHint: string;
     subjects: string; subjectsHint: string; addSubject: string;
-    subjectName: string; subjectCode: string; deleteSubject: string; noSubjects: string;
+    subjectName: string; subjectCode: string; subjectCoefficient: string; deleteSubject: string; noSubjects: string;
     classCreateValidation: string; invalidGradeLevel: string;
   };
   portal: {
@@ -265,7 +265,7 @@ export const en: Translations = {
     feeSchedule: 'Fee Payment Schedule', installment: 'Installment',
     totalAmount: 'Total', feeScheduleHint: 'Amounts must sum to 100,000 FCFA',
     subjects: 'Subjects', subjectsHint: 'Manage subjects used in the timetable and assessments',
-    addSubject: 'Add Subject', subjectName: 'Subject Name', subjectCode: 'Code (e.g. MTH)',
+    addSubject: 'Add Subject', subjectName: 'Subject Name', subjectCode: 'Code (e.g. MTH)', subjectCoefficient: 'Coefficient',
     deleteSubject: 'Delete subject', noSubjects: 'No subjects defined yet.',
     classCreateValidation: 'Name and grade level are required.',
     invalidGradeLevel: 'Selected grade level is invalid.',
@@ -426,7 +426,7 @@ export const fr: Translations = {
     feeSchedule: 'Calendrier des versements', installment: 'Versement',
     totalAmount: 'Total', feeScheduleHint: 'Les montants doivent totaliser 100 000 FCFA',
     subjects: 'Matières', subjectsHint: "Gérer les matières utilisées dans l'emploi du temps et les évaluations",
-    addSubject: 'Ajouter une matière', subjectName: 'Nom de la matière', subjectCode: 'Code (ex. MTH)',
+    addSubject: 'Ajouter une matière', subjectName: 'Nom de la matière', subjectCode: 'Code (ex. MTH)', subjectCoefficient: 'Coefficient',
     deleteSubject: 'Supprimer la matière', noSubjects: 'Aucune matière définie.',
     classCreateValidation: 'Le nom et le niveau sont requis.',
     invalidGradeLevel: 'Le niveau sélectionné est invalide.',

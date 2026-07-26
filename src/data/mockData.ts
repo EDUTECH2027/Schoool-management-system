@@ -33,14 +33,14 @@ export const gradeLevels: GradeLevel[] = [
 ];
 
 export const subjects: Subject[] = [
-  { id: 'sub1', name: 'English Language',   code: 'ENG' },
-  { id: 'sub2', name: 'Mathematics',        code: 'MTH' },
-  { id: 'sub3', name: 'General Science',    code: 'SCI' },
-  { id: 'sub4', name: 'Social Studies',     code: 'SST' },
-  { id: 'sub5', name: 'Shona',             code: 'SHO' },
-  { id: 'sub6', name: 'Religious & Moral',  code: 'RME' },
-  { id: 'sub7', name: 'Art & Craft',        code: 'ART' },
-  { id: 'sub8', name: 'Physical Education', code: 'PE'  },
+  { id: 'sub1', name: 'English Language',   code: 'ENG', coefficient: 1 },
+  { id: 'sub2', name: 'Mathematics',        code: 'MTH', coefficient: 1 },
+  { id: 'sub3', name: 'General Science',    code: 'SCI', coefficient: 1 },
+  { id: 'sub4', name: 'Social Studies',     code: 'SST', coefficient: 1 },
+  { id: 'sub5', name: 'Shona',             code: 'SHO', coefficient: 1 },
+  { id: 'sub6', name: 'Religious & Moral',  code: 'RME', coefficient: 1 },
+  { id: 'sub7', name: 'Art & Craft',        code: 'ART', coefficient: 1 },
+  { id: 'sub8', name: 'Physical Education', code: 'PE',  coefficient: 1 },
 ];
 
 export const classes: Class[] = [];

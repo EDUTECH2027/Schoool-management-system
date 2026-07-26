@@ -80,9 +80,11 @@ export default function Settings() {
   const [subjectSaved, setSubjectSaved] = useState(false);
   const [newSubName,   setNewSubName]   = useState('');
   const [newSubCode,   setNewSubCode]   = useState('');
+  const [newSubCoeff,  setNewSubCoeff]  = useState('1');
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [editSubName,  setEditSubName]  = useState('');
   const [editSubCode,  setEditSubCode]  = useState('');
+  const [editSubCoeff, setEditSubCoeff] = useState('1');
 
   // Classes state
   type ClassFormState = { name: string; room: string; capacity: string; teacherId: string };
@@ -275,12 +277,13 @@ export default function Settings() {
     const code = newSubCode.trim().toUpperCase();
     if (!name || !code) return;
     try {
-      const created = await api.createSubject({ name, code });
+      const created = await api.createSubject({ name, code, coefficient: parseFloat(newSubCoeff) || 1 });
       setSubjectList(prev => [...prev, created]);
       setSubjectSaved(true);
       setTimeout(() => setSubjectSaved(false), 2000);
       setNewSubName('');
       setNewSubCode('');
+      setNewSubCoeff('1');
     } catch (err) { console.error(err); }
   };
 
@@ -295,6 +298,7 @@ export default function Settings() {
     setEditingSubId(s.id);
     setEditSubName(s.name);
     setEditSubCode(s.code);
+    setEditSubCoeff(String(s.coefficient ?? 1));
   };
 
   const commitEdit = async () => {
@@ -305,6 +309,7 @@ export default function Settings() {
       const updated = await api.updateSubject(editingSubId, {
         name: editSubName.trim() || orig.name,
         code: editSubCode.trim().toUpperCase() || orig.code,
+        coefficient: parseFloat(editSubCoeff) || 1,
       });
       setSubjectList(prev => prev.map(s => s.id === editingSubId ? updated : s));
       setSubjectSaved(true);
@@ -815,6 +820,13 @@ export default function Settings() {
                     placeholder={t.settings.subjectCode}
                     className="w-28 py-1.5 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white uppercase"
                   />
+                  <input
+                    type="number" min={0} step="0.5"
+                    value={editSubCoeff}
+                    onChange={e => setEditSubCoeff(e.target.value)}
+                    title={t.settings.subjectCoefficient}
+                    className="w-20 py-1.5 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                  />
                   <button
                     onClick={commitEdit}
                     className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
@@ -834,6 +846,12 @@ export default function Settings() {
                 <>
                   <span className="flex-1 text-sm text-slate-800 font-medium">{s.name}</span>
                   <span className="w-16 text-xs font-mono text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md text-center">{s.code}</span>
+                  <span
+                    title={t.settings.subjectCoefficient}
+                    className="w-20 text-xs font-semibold text-violet-700 bg-violet-50 px-2 py-1 rounded-md text-center"
+                  >
+                    Coef. {s.coefficient ?? 1}
+                  </span>
                   <button
                     onClick={() => startEdit(s)}
                     className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -870,6 +888,15 @@ export default function Settings() {
             onKeyDown={e => { if (e.key === 'Enter') addSubject(); }}
             placeholder={t.settings.subjectCode}
             className="w-28 py-1.5 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white uppercase"
+          />
+          <input
+            type="number" min={0} step="0.5"
+            value={newSubCoeff}
+            onChange={e => setNewSubCoeff(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addSubject(); }}
+            title={t.settings.subjectCoefficient}
+            placeholder={t.settings.subjectCoefficient}
+            className="w-20 py-1.5 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
           />
           <button
             onClick={addSubject}

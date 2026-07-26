@@ -276,6 +276,12 @@ export default function Assessments() {
               {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">{t.settings.subjectCoefficient}</label>
+            <span className="inline-flex items-center h-9 px-3 text-sm font-semibold text-violet-700 bg-violet-50 border border-violet-100 rounded-lg">
+              {subjects.find(s => s.id === subjectId)?.coefficient ?? 1}
+            </span>
+          </div>
           {terms.length > 0 && (
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">{t.assessments.term}</label>
