@@ -31,6 +31,31 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return res.json();
 }
 
+// For multipart uploads — no Content-Type here so the browser can set the
+// multipart boundary itself, and no JSON.stringify since the body is FormData.
+async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${BASE}/api${path}`, {
+    method: 'POST',
+    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(err.error ?? `HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
+// Uploaded media (forum images/videos/voice notes) is stored as a relative
+// `/uploads/...` path — resolve it against the API origin (not the
+// frontend's own origin, which is a different port/host in dev and prod).
+export function mediaUrl(path?: string | null): string {
+  if (!path) return '';
+  return path.startsWith('/uploads/') ? `${BASE}${path}` : path;
+}
+
 // Reference data (subjects, grade levels) rarely changes but is independently
 // re-fetched by many pages — cache per session and invalidate on mutation
 // instead of hitting the network every time a page mounts.
@@ -101,8 +126,19 @@ export const api = {
   getStudents:   (params?: Record<string, string>) =>
     request<Student[]>('GET', `/students${toQS(params)}`),
   getStudent:    (id: string) => request<Student>('GET', `/students/${id}`),
-  createStudent: (data: Partial<Student>) => request<Student>('POST', '/students', data),
-  updateStudent: (id: string, data: Partial<Student>) => request<Student>('PUT', `/students/${id}`, data),
+  createStudent: (data: CreateStudentInput) => {
+    const { photoFile, documents, siblingIds, ...rest } = data;
+    const fd = new FormData();
+    Object.entries(rest).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') fd.append(k, String(v)); });
+    if (siblingIds && siblingIds.length > 0) fd.append('siblingIds', JSON.stringify(siblingIds));
+    if (photoFile) fd.append('photo', photoFile);
+    if (documents && documents.length > 0) {
+      documents.forEach(doc => fd.append('documents', doc.file));
+      fd.append('documentTitles', JSON.stringify(documents.map(doc => doc.title)));
+    }
+    return uploadRequest<Student>('/students', fd);
+  },
+  updateStudent: (id: string, data: Partial<Omit<Student, 'documents'>>) => request<Student>('PUT', `/students/${id}`, data),
   deleteStudent: (id: string) => request<void>('DELETE', `/students/${id}`),
 
   // ── Parents ──────────────────────────────────────────────────────
@@ -209,6 +245,12 @@ export const api = {
     request<ForumMessage>('POST', `/forums/threads/${threadId}/messages`, data),
   deleteMessage:   (threadId: string, msgId: string) =>
     request<void>('DELETE', `/forums/threads/${threadId}/messages/${msgId}`),
+  uploadForumMedia:(threadId: string, file: File, extra?: { duration?: number }) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (extra?.duration !== undefined) fd.append('duration', String(Math.round(extra.duration)));
+    return uploadRequest<ForumMessage>(`/forums/threads/${threadId}/upload`, fd);
+  },
 
   // ── User Management (admin) ───────────────────────────────────────
   getUsers:        () => request<PortalUser[]>('GET', '/users'),
@@ -384,7 +426,15 @@ export interface Subject { id: string; name: string; code: string; coefficient: 
 export interface Teacher { id: string; first_name: string; last_name: string; email: string; phone: string; gender: string; subjects: string[]; class_assigned?: string; qualification: string; join_date: string; is_active: number; }
 export interface TeacherInput { firstName?: string; lastName?: string; email?: string; phone?: string; gender?: string; subjects?: string[]; classAssigned?: string; qualification?: string; joinDate?: string; isActive?: boolean; }
 export interface ClassRecord { id: string; grade_level_id: string; grade_level_name: string; name: string; capacity: number; room: string; class_teacher_id?: string; class_teacher_name?: string; enrolled: number; }
-export interface Student { id: string; student_number: string; first_name: string; last_name: string; date_of_birth: string; gender: string; class_id: string; class_name: string; grade_level_name: string; guardian_name: string; guardian_phone: string; guardian_relationship: string; admission_date: string; is_active: number; address: string; }
+export interface Student { id: string; student_number: string; first_name: string; middle_name?: string; last_name: string; date_of_birth: string; gender: string; class_id: string; class_name: string; grade_level_name: string; photo_url?: string; guardian_name: string; guardian_phone: string; guardian_relationship: string; admission_date: string; is_active: number; address: string; city?: string; state?: string; zip_code?: string; mobile_number?: string; alternate_mobile_number?: string; sibling_ids?: string[]; documents?: { id: string; title: string; file_url: string; created_at: string }[]; }
+export interface CreateStudentInput {
+  firstName: string; middleName?: string; lastName: string; dateOfBirth?: string; gender?: string;
+  classId?: string; className?: string; gradeLevelName?: string;
+  address?: string; city?: string; state?: string; zipCode?: string; mobileNumber?: string; alternateMobileNumber?: string;
+  guardianName?: string; guardianPhone?: string; guardianRelationship?: string; admissionDate?: string;
+  siblingIds?: string[];
+  photoFile?: File; documents?: { title: string; file: File }[];
+}
 export interface Parent { id: string; name: string; email?: string; phone: string; relationship?: string; address?: string; occupation?: string; children?: Student[]; }
 export interface AttendanceRecord { id: string; student_id: string; student_name: string; student_number: string; class_id: string; class_name: string; date: string; status: string; remarks?: string; }
 export interface AttendanceStat { student_id: string; student_name: string; present: number; absent: number; late: number; excused: number; total: number; }
@@ -401,7 +451,7 @@ export interface PayrollRecord { id: string; teacher_id: string; month: string; 
 export interface Announcement { id: string; title: string; body: string; author: string; audience: string; type: 'info' | 'warning' | 'success'; is_pinned: number; created_at: string; updated_at: string; }
 export interface EmailAlert { id: string; subject: string; body: string; recipient: string; sender: string; status: string; sent_at: string; }
 export interface ForumThread { id: string; title: string; tag: string; author: string; is_pinned: number; message_count: number; created_at: string; updated_at: string; }
-export interface ForumMessage { id: string; thread_id: string; author: string; type: string; content?: string; image_url?: string; voice_url?: string; voice_duration?: number; created_at: string; }
+export interface ForumMessage { id: string; thread_id: string; author: string; author_id?: string | null; type: string; content?: string; image_url?: string; voice_url?: string; voice_duration?: number; video_url?: string; video_duration?: number; created_at: string; }
 export interface DashboardData { totalStudents: number; totalTeachers: number; totalClasses: number; presentToday: number; absentToday: number; attendanceRate: number; feesCollected: number; feesPending: number; feesTotal: number; recentAnnouncements: Announcement[]; classSizes: { name: string; enrolled: number; capacity: number }[]; feesByStatus: { status: string; count: number; total_balance: number }[]; }
 export interface PortalUser { id: string; name: string; email: string; role: string; initials: string; teacher_id?: string | null; student_id?: string | null; parent_id?: string | null; created_at: string; }
 export interface CreateUserInput { name: string; email: string; password: string; role: string; initials?: string; teacher_id?: string | null; student_id?: string | null; parent_id?: string | null; }

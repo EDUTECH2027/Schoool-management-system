@@ -4,8 +4,10 @@ import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 
 export default function ForcePasswordChange() {
-  const { user, logout, clearMustChangePassword } = useAuth();
-  const [currentPassword, setCurrentPassword] = useState('');
+  const { user, logout, clearMustChangePassword, pendingTempPassword } = useAuth();
+  // If we already know the temporary password (e.g. a student's silent
+  // first login with the known default), skip re-asking for it.
+  const [currentPassword, setCurrentPassword] = useState(pendingTempPassword ?? '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
@@ -51,11 +53,13 @@ export default function ForcePasswordChange() {
 
         <form onSubmit={submit} className="space-y-3">
           {error && <p className="text-red-600 text-sm">{error}</p>}
-          <div>
-            <label className="text-xs font-medium text-slate-600">Temporary Password</label>
-            <input required type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
-              className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-          </div>
+          {!pendingTempPassword && (
+            <div>
+              <label className="text-xs font-medium text-slate-600">Temporary Password</label>
+              <input required type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)}
+                className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            </div>
+          )}
           <div>
             <label className="text-xs font-medium text-slate-600">New Password</label>
             <input required type="password" minLength={6} value={newPassword} onChange={e => setNewPassword(e.target.value)}

@@ -1,7 +1,8 @@
-import { X, Calendar, MapPin, Phone, BookOpen, Hash, User } from 'lucide-react';
+import { X, Calendar, MapPin, Phone, BookOpen, Hash, User, FileText } from 'lucide-react';
 import type { Student } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { StatusBadge } from '../ui/Badge';
+import { mediaUrl } from '../../api/client';
 
 interface Props {
   student: Student;
@@ -43,9 +44,11 @@ export default function StudentViewModal({ student, onClose, onEdit }: Props) {
 
         {/* Banner */}
         <div className="px-5 py-5 bg-indigo-50 border-b border-indigo-100 flex items-center gap-4">
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold shrink-0
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold shrink-0 overflow-hidden
             ${student.gender === 'female' ? 'bg-pink-200 text-pink-700' : 'bg-blue-200 text-blue-700'}`}>
-            {student.firstName[0]}{student.lastName[0]}
+            {student.photoUrl
+              ? <img src={mediaUrl(student.photoUrl)} alt="" className="w-full h-full object-cover" />
+              : <>{student.firstName[0]}{student.lastName[0]}</>}
           </div>
           <div>
             <h3 className="text-lg font-bold text-slate-800">{student.firstName} {student.lastName}</h3>
@@ -118,6 +121,24 @@ export default function StudentViewModal({ student, onClose, onEdit }: Props) {
               </div>
             </div>
           </div>
+
+          {/* Documents */}
+          {!!student.documents?.length && (
+            <div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Documents</p>
+              <div className="space-y-1.5">
+                {student.documents.map(doc => (
+                  <a
+                    key={doc.id} href={mediaUrl(doc.fileUrl)} target="_blank" rel="noreferrer"
+                    className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-800 bg-slate-50 rounded-lg px-3 py-2"
+                  >
+                    <FileText size={14} className="shrink-0" />
+                    <span className="truncate">{doc.title}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

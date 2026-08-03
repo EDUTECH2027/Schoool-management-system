@@ -7,7 +7,7 @@ import StudentViewModal from '../composants/students/StudentViewModal';
 import StudentEditModal from '../composants/students/StudentEditModal';
 import StudentAddModal  from '../composants/students/StudentAddModal';
 import type { FeeData } from '../composants/students/StudentAddModal';
-import { api } from '../api/client';
+import { api, mediaUrl, type CreateStudentInput } from '../api/client';
 import { mapStudent, mapClass } from '../api/mappers';
 
 export default function Students() {
@@ -58,24 +58,22 @@ export default function Students() {
     setEditing(null);
   };
 
-  const handleAdd = async (newStudent: Student, fee?: FeeData) => {
-    try {
-      const result = await api.createStudent(newStudent);
-      const mapped = mapStudent(result);
-      setStudentList(prev => [mapped, ...prev]);
+  const handleAdd = async (input: CreateStudentInput, fee?: FeeData) => {
+    const result = await api.createStudent(input);
+    const mapped = mapStudent(result);
+    setStudentList(prev => [mapped, ...prev]);
 
-      if (fee && fee.feeName && fee.amountDue > 0) {
-        await api.createFee({
-          studentId:    mapped.id,
-          feeName:      fee.feeName,
-          amountDue:    fee.amountDue,
-          dueDate:      fee.dueDate,
-          academicYear: fee.academicYear,
-        } as Parameters<typeof api.createFee>[0]);
-      }
-    } catch (err) {
-      console.error('Failed to create student:', err);
+    if (fee && fee.feeName && fee.amountDue > 0) {
+      await api.createFee({
+        studentId:    mapped.id,
+        feeName:      fee.feeName,
+        amountDue:    fee.amountDue,
+        dueDate:      fee.dueDate,
+        academicYear: fee.academicYear,
+      } as Parameters<typeof api.createFee>[0]);
     }
+
+    return mapped;
   };
 
   // Open Edit from inside the View modal
@@ -266,9 +264,11 @@ export default function Students() {
                   {/* Name + avatar */}
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 overflow-hidden
                         ${s.gender === 'female' ? 'bg-pink-100 text-pink-700' : 'bg-blue-100 text-blue-700'}`}>
-                        {s.firstName[0]}{s.lastName[0]}
+                        {s.photoUrl
+                          ? <img src={mediaUrl(s.photoUrl)} alt="" className="w-full h-full object-cover" />
+                          : <>{s.firstName[0]}{s.lastName[0]}</>}
                       </div>
                       <div>
                         <p className="font-medium text-slate-800">{s.firstName} {s.lastName}</p>
@@ -354,6 +354,7 @@ export default function Students() {
           onAdd={handleAdd}
           totalExisting={studentList.length}
           classes={classes}
+          students={studentList}
         />
       )}
     </div>

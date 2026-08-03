@@ -19,10 +19,16 @@ interface AuthContextValue {
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
   clearMustChangePassword: () => void;
+  // The password used for a just-succeeded login, remembered only when the
+  // caller knows it was a known default (e.g. the student-ID silent first
+  // login) — lets ForcePasswordChange skip re-asking for it. Never persisted.
+  pendingTempPassword: string | null;
+  setPendingTempPassword: (password: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextValue>({
   user: null, login: async () => false, logout: () => {}, clearMustChangePassword: () => {},
+  pendingTempPassword: null, setPendingTempPassword: () => {},
 });
 
 const stored = (): AuthUser | null => {
@@ -32,6 +38,7 @@ const stored = (): AuthUser | null => {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(stored);
+  const [pendingTempPassword, setPendingTempPassword] = useState<string | null>(null);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -59,10 +66,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = () => {
     api.logout().catch(() => {});
     setUser(null);
+    setPendingTempPassword(null);
     localStorage.removeItem('auth_user');
   };
 
   const clearMustChangePassword = () => {
+    setPendingTempPassword(null);
     setUser(prev => {
       if (!prev) return prev;
       const updated = { ...prev, must_change_password: false };
@@ -72,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, clearMustChangePassword }}>
+    <AuthContext.Provider value={{ user, login, logout, clearMustChangePassword, pendingTempPassword, setPendingTempPassword }}>
       {children}
     </AuthContext.Provider>
   );

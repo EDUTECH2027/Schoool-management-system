@@ -23,7 +23,7 @@ export const PHONE_COUNTRIES: Country[] = [
 
 /** Parse a stored phone string (e.g. "+263771112201") into country code + local digits. */
 export function parsePhone(value: string): { countryCode: string; local: string } {
-  if (!value) return { countryCode: 'ZW', local: '' };
+  if (!value) return { countryCode: 'CM', local: '' };
   const digits = value.replace(/\D/g, '');
   // Match longest dial code first to avoid prefix ambiguity
   const sorted = [...PHONE_COUNTRIES].sort((a, b) => b.dial.length - a.dial.length);
@@ -33,8 +33,8 @@ export function parsePhone(value: string): { countryCode: string; local: string 
       return { countryCode: c.code, local: digits.slice(dialDigits.length) };
     }
   }
-  // No dial code found — strip leading 0 (national trunk prefix) and default to ZW
-  return { countryCode: 'ZW', local: digits.startsWith('0') ? digits.slice(1) : digits };
+  // No dial code found — strip leading 0 (national trunk prefix) and default to CM
+  return { countryCode: 'CM', local: digits.startsWith('0') ? digits.slice(1) : digits };
 }
 
 /** Returns true when the stored phone value passes digit-count validation. */

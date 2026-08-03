@@ -1,4 +1,4 @@
-export type Gender = 'male' | 'female';
+export type Gender = 'male' | 'female' | 'other';
 export type TermName = 'first' | 'second' | 'third';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';
 export type ConductGrade = 'Excellent' | 'Very Good' | 'Good' | 'Fair' | 'Poor';
@@ -80,10 +80,18 @@ export interface Subject {
   coefficient: number;
 }
 
+export interface StudentDocument {
+  id: string;
+  title: string;
+  fileUrl: string;
+  createdAt: string;
+}
+
 export interface Student {
   id: string;
   studentNumber: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
   dateOfBirth: string;
   gender: Gender;
@@ -91,12 +99,19 @@ export interface Student {
   className: string;
   gradeLevelName: string;
   photoUrl?: string;
+  address: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  mobileNumber?: string;
+  alternateMobileNumber?: string;
+  siblingIds?: string[];
   guardianName: string;
   guardianPhone: string;
   guardianRelationship: GuardianRel;
   admissionDate: string;
   isActive: boolean;
-  address: string;
+  documents?: StudentDocument[];
 }
 
 export interface Teacher {

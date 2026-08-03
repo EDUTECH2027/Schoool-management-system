@@ -38,18 +38,29 @@ export function mapStudent(s: Raw): Student {
     id:                   s.id,
     studentNumber:        s.student_number      ?? s.studentNumber      ?? '',
     firstName:            s.first_name          ?? s.firstName          ?? '',
+    middleName:           s.middle_name         ?? s.middleName         ?? undefined,
     lastName:             s.last_name           ?? s.lastName           ?? '',
     dateOfBirth:          s.date_of_birth       ?? s.dateOfBirth        ?? '',
-    gender:               (s.gender             ?? 'male') as 'male' | 'female',
+    gender:               (s.gender             ?? 'male') as Student['gender'],
     classId:              s.class_id            ?? s.classId            ?? '',
     className:            s.class_name          ?? s.className          ?? '',
     gradeLevelName:       s.grade_level_name    ?? s.gradeLevelName     ?? '',
+    photoUrl:             s.photo_url           ?? s.photoUrl           ?? undefined,
     address:              s.address             ?? '',
+    city:                 s.city                ?? undefined,
+    state:                s.state               ?? undefined,
+    zipCode:              s.zip_code            ?? s.zipCode            ?? undefined,
+    mobileNumber:         s.mobile_number       ?? s.mobileNumber       ?? undefined,
+    alternateMobileNumber:s.alternate_mobile_number ?? s.alternateMobileNumber ?? undefined,
+    siblingIds:           Array.isArray(s.sibling_ids ?? s.siblingIds) ? (s.sibling_ids ?? s.siblingIds) : [],
     guardianName:         s.guardian_name       ?? s.guardianName       ?? '',
     guardianPhone:        s.guardian_phone      ?? s.guardianPhone      ?? '',
     guardianRelationship: (s.guardian_relationship ?? s.guardianRelationship ?? 'guardian') as Student['guardianRelationship'],
     admissionDate:        s.admission_date      ?? s.admissionDate      ?? '',
     isActive:             s.isActive !== undefined ? Boolean(s.isActive) : Boolean(s.is_active),
+    documents: Array.isArray(s.documents)
+      ? s.documents.map((d: Raw) => ({ id: d.id, title: d.title, fileUrl: d.file_url ?? d.fileUrl ?? '', createdAt: d.created_at ?? d.createdAt ?? '' }))
+      : [],
   };
 }
 
