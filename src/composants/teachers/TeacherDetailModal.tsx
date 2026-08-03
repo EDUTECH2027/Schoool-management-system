@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   X, Mail, Phone, Calendar, BookOpen, GraduationCap,
-  ClipboardCheck, Clock, Users,
+  ClipboardCheck, Clock, Users, FileText,
 } from 'lucide-react';
 import type { Teacher, TeacherAttendance, TeacherScheduleEntry, Class, Student } from '../../types';
-import { api } from '../../api/client';
+import { api, mediaUrl } from '../../api/client';
 import { mapClass, mapStudent } from '../../api/mappers';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { StatusBadge } from '../ui/Badge';
@@ -258,6 +258,24 @@ export default function TeacherDetailModal({ teacher, attendance, schedule, onCl
                   </div>
                 </div>
               </div>
+
+              {/* Qualification documents */}
+              {teacher.documents && teacher.documents.length > 0 && (
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2.5">
+                    {lang === 'fr' ? 'Documents de qualification' : 'Qualification Documents'}
+                  </p>
+                  <div className="space-y-1.5">
+                    {teacher.documents.map(doc => (
+                      <a key={doc.id} href={mediaUrl(doc.fileUrl)} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-3 px-3 py-2 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-colors text-sm text-slate-700 hover:text-indigo-600">
+                        <FileText size={14} className="text-indigo-500 shrink-0" />
+                        <span className="truncate">{doc.title}</span>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

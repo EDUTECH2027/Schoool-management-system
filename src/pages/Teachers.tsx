@@ -6,7 +6,7 @@ import TeacherDetailModal from '../composants/teachers/TeacherDetailModal';
 import AddTeacherModal    from '../composants/teachers/AddTeacherModal';
 import EditTeacherModal   from '../composants/teachers/EditTeacherModal';
 import ConfirmDialog      from '../composants/ui/ConfirmDialog';
-import { api } from '../api/client';
+import { api, type CreateTeacherInput } from '../api/client';
 import { mapTeacher } from '../api/mappers';
 
 export default function Teachers() {
@@ -42,23 +42,11 @@ export default function Teachers() {
   };
   const close = () => setSelected(null);
 
-  const handleAdd = async (tc: Teacher) => {
-    try {
-      const result = await api.createTeacher({
-        firstName:     tc.firstName,
-        lastName:      tc.lastName,
-        email:         tc.email,
-        phone:         tc.phone,
-        gender:        tc.gender,
-        subjects:      tc.subjects,
-        classAssigned: tc.classAssigned,
-        qualification: tc.qualification,
-        joinDate:      tc.joinDate,
-      });
-      setTeacherList(prev => [mapTeacher(result), ...prev]);
-    } catch (err) {
-      console.error('Failed to create teacher:', err);
-    }
+  const handleAdd = async (input: CreateTeacherInput) => {
+    const result = await api.createTeacher(input);
+    const mapped = mapTeacher(result);
+    setTeacherList(prev => [mapped, ...prev]);
+    return mapped;
   };
 
   const handleUpdate = async (tc: Teacher) => {

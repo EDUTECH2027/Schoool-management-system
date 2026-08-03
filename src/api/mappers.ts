@@ -16,6 +16,9 @@ export function mapTeacher(t: Raw): Teacher {
     qualification: t.qualification  ?? '',
     joinDate:      t.join_date      ?? t.joinDate ?? '',
     isActive:      t.isActive !== undefined ? Boolean(t.isActive) : Boolean(t.is_active),
+    documents: Array.isArray(t.documents)
+      ? t.documents.map((d: Raw) => ({ id: d.id, title: d.title, fileUrl: d.file_url ?? d.fileUrl, createdAt: d.created_at ?? d.createdAt }))
+      : undefined,
   };
 }
 

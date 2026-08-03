@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
-import { X, GraduationCap, ChevronRight, CheckCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, GraduationCap, ChevronRight, CheckCircle, FileText, Plus } from 'lucide-react';
 import type { Teacher } from '../../types';
-import { api, type ClassRecord, type Subject } from '../../api/client';
+import { api, type ClassRecord, type Subject, type CreateTeacherInput } from '../../api/client';
 import { useLanguage } from '../../i18n/LanguageContext';
 
 interface Props {
   onClose: () => void;
-  onAdd: (teacher: Teacher) => void;
+  onAdd: (input: CreateTeacherInput) => Promise<Teacher | void> | Teacher | void;
 }
 
 type Step = 'personal' | 'professional';
@@ -64,13 +64,27 @@ function Field({
 }
 
 export default function AddTeacherModal({ onClose, onAdd }: Props) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const lbl = (en: string, fr: string) => (lang === 'fr' ? fr : en);
 
   const [step, setStep]       = useState<Step>('personal');
   const [done, setDone]       = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors]   = useState<Errors>({});
   const [classList, setClassList]     = useState<ClassRecord[]>([]);
   const [subjectList, setSubjectList] = useState<Subject[]>([]);
+
+  type DocumentRow = { id: number; title: string; file: File | null };
+  const nextDocId = useRef(1);
+  const [documentRows, setDocumentRows] = useState<DocumentRow[]>([{ id: 0, title: '', file: null }]);
+  const documentInputRefs = useRef(new Map<number, HTMLInputElement>());
+
+  const addDocumentRow = () => setDocumentRows(prev => [...prev, { id: nextDocId.current++, title: '', file: null }]);
+  const removeDocumentRow = (id: number) => setDocumentRows(prev =>
+    prev.length > 1 ? prev.filter(r => r.id !== id) : prev.map(r => ({ ...r, title: '', file: null }))
+  );
+  const updateDocumentRow = (id: number, patch: Partial<DocumentRow>) =>
+    setDocumentRows(prev => prev.map(r => r.id === id ? { ...r, ...patch } : r));
 
   useEffect(() => {
     api.getClasses().then(setClassList).catch(console.error);
@@ -119,13 +133,12 @@ export default function AddTeacherModal({ onClose, onAdd }: Props) {
     if (validate()) setStep('professional');
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
 
     const qual = form.qualification === 'Other' ? form.customQualification : form.qualification;
 
-    const newTeacher: Teacher = {
-      id:            `tc-${Date.now()}`,
+    const input: CreateTeacherInput = {
       firstName:     form.firstName.trim(),
       lastName:      form.lastName.trim(),
       email:         form.email.trim().toLowerCase(),
@@ -135,12 +148,21 @@ export default function AddTeacherModal({ onClose, onAdd }: Props) {
       classAssigned: form.classAssigned || undefined,
       qualification: qual.trim(),
       joinDate:      form.joinDate,
-      isActive:      true,
+      documents: documentRows
+        .filter((r): r is DocumentRow & { file: File } => !!r.file)
+        .map(r => ({ title: r.title.trim() || r.file.name, file: r.file })),
     };
 
-    onAdd(newTeacher);
-    setDone(true);
-    setTimeout(onClose, 1100);
+    setSubmitting(true);
+    try {
+      await onAdd(input);
+      setDone(true);
+      setTimeout(onClose, 1100);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const stepIndex = step === 'personal' ? 0 : 1;
@@ -312,6 +334,48 @@ export default function AddTeacherModal({ onClose, onAdd }: Props) {
                     )}
                   </div>
 
+                  {/* Qualification Documents (title + attachment, repeatable) */}
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1.5">
+                      {lbl('Qualification Documents', 'Documents de qualification')}
+                    </label>
+                    <div className="space-y-3">
+                      {documentRows.map((row, i) => (
+                        <div key={row.id} className="grid grid-cols-2 gap-3 items-end">
+                          <input
+                            value={row.title}
+                            onChange={e => updateDocumentRow(row.id, { title: e.target.value })}
+                            placeholder={lbl('e.g. Teaching Certificate', 'ex. Certificat d’enseignement')}
+                            className="w-full py-2.5 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
+                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              ref={el => { if (el) documentInputRefs.current.set(row.id, el); }}
+                              type="file" accept="image/*,.pdf,.doc,.docx" className="hidden"
+                              onChange={e => updateDocumentRow(row.id, { file: e.target.files?.[0] ?? null })}
+                            />
+                            <button type="button" onClick={() => documentInputRefs.current.get(row.id)?.click()}
+                              className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 shrink-0">
+                              <FileText size={13} /> {lbl('Choose File', 'Choisir un fichier')}
+                            </button>
+                            <span className="text-xs text-slate-400 truncate flex-1">{row.file?.name ?? lbl('No file chosen', 'Aucun fichier')}</span>
+                            {(row.file || row.title || documentRows.length > 1) && (
+                              <button type="button" onClick={() => removeDocumentRow(row.id)} className="p-1.5 text-slate-400 hover:text-red-500 shrink-0" title={lbl('Remove', 'Retirer')}>
+                                <X size={14} />
+                              </button>
+                            )}
+                            {i === documentRows.length - 1 && (
+                              <button type="button" onClick={addDocumentRow}
+                                className="p-1.5 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 shrink-0" title={lbl('Add another document', 'Ajouter un document')}>
+                                <Plus size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Subjects (checkbox grid) */}
                   <div>
                     <label className="block text-xs font-medium text-slate-600 mb-2">
@@ -418,10 +482,11 @@ export default function AddTeacherModal({ onClose, onAdd }: Props) {
             ) : (
               <button
                 onClick={handleSubmit}
-                className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors"
+                disabled={submitting}
+                className="flex items-center gap-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white rounded-lg font-medium transition-colors"
               >
                 <GraduationCap size={15} />
-                {t.teachers.addTeacher}
+                {submitting ? lbl('Adding…', 'Ajout…') : t.teachers.addTeacher}
               </button>
             )}
           </div>

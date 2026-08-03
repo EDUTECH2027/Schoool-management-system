@@ -109,7 +109,17 @@ export const api = {
   getTeachers:   (params?: Record<string, string>) =>
     request<Teacher[]>('GET', `/teachers${toQS(params)}`),
   getTeacher:    (id: string) => request<Teacher>('GET', `/teachers/${id}`),
-  createTeacher: (data: TeacherInput) => request<Teacher>('POST', '/teachers', data),
+  createTeacher: (data: CreateTeacherInput) => {
+    const { documents, subjects, ...rest } = data;
+    const fd = new FormData();
+    Object.entries(rest).forEach(([k, v]) => { if (v !== undefined && v !== null && v !== '') fd.append(k, String(v)); });
+    if (subjects && subjects.length > 0) fd.append('subjects', JSON.stringify(subjects));
+    if (documents && documents.length > 0) {
+      documents.forEach(doc => fd.append('documents', doc.file));
+      fd.append('documentTitles', JSON.stringify(documents.map(doc => doc.title)));
+    }
+    return uploadRequest<Teacher>('/teachers', fd);
+  },
   updateTeacher: (id: string, data: TeacherInput) => request<Teacher>('PUT', `/teachers/${id}`, data),
   deleteTeacher: (id: string) => request<void>('DELETE', `/teachers/${id}`),
 
@@ -423,8 +433,9 @@ export interface AcademicYear { id: string; label: string; start_date: string; e
 export interface Term { id: string; academic_year_id: string; name: string; start_date: string; end_date: string; is_current: number; }
 export interface GradeLevel { id: string; name: string; sort_order: number; }
 export interface Subject { id: string; name: string; code: string; coefficient: number; }
-export interface Teacher { id: string; first_name: string; last_name: string; email: string; phone: string; gender: string; subjects: string[]; class_assigned?: string; qualification: string; join_date: string; is_active: number; }
+export interface Teacher { id: string; first_name: string; last_name: string; email: string; phone: string; gender: string; subjects: string[]; class_assigned?: string; qualification: string; join_date: string; is_active: number; documents?: { id: string; title: string; file_url: string; created_at: string }[]; }
 export interface TeacherInput { firstName?: string; lastName?: string; email?: string; phone?: string; gender?: string; subjects?: string[]; classAssigned?: string; qualification?: string; joinDate?: string; isActive?: boolean; }
+export interface CreateTeacherInput extends TeacherInput { documents?: { title: string; file: File }[]; }
 export interface ClassRecord { id: string; grade_level_id: string; grade_level_name: string; name: string; capacity: number; room: string; class_teacher_id?: string; class_teacher_name?: string; enrolled: number; }
 export interface Student { id: string; student_number: string; first_name: string; middle_name?: string; last_name: string; date_of_birth: string; gender: string; class_id: string; class_name: string; grade_level_name: string; photo_url?: string; guardian_name: string; guardian_phone: string; guardian_relationship: string; admission_date: string; is_active: number; address: string; city?: string; state?: string; zip_code?: string; mobile_number?: string; alternate_mobile_number?: string; sibling_ids?: string[]; documents?: { id: string; title: string; file_url: string; created_at: string }[]; }
 export interface CreateStudentInput {

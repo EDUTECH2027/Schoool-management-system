@@ -126,6 +126,7 @@ export interface Teacher {
   qualification: string;
   joinDate: string;
   isActive: boolean;
+  documents?: { id: string; title: string; fileUrl: string; createdAt: string }[];
 }
 
 export interface AttendanceRecord {

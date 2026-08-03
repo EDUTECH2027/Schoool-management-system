@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Pencil, Save, X } from 'lucide-react';
-import { api } from '../../api/client';
+import { Pencil, Save, X, FileText } from 'lucide-react';
+import { api, mediaUrl } from '../../api/client';
 import type { Teacher } from '../../api/client';
 
 export default function TeacherProfile() {
@@ -68,6 +68,23 @@ export default function TeacherProfile() {
             ? <input value={form.qualification} onChange={e => setForm(f => ({ ...f, qualification: e.target.value }))} className="text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 w-64" />
             : <span className="text-sm text-slate-800 dark:text-slate-200">{teacher.qualification ?? '—'}</span>
           }
+        </div>
+
+        <div className="flex items-start px-5 py-3.5">
+          <span className="w-40 text-sm text-slate-500 shrink-0 pt-0.5">Qualification Documents</span>
+          {teacher.documents && teacher.documents.length > 0 ? (
+            <div className="flex-1 space-y-1.5">
+              {teacher.documents.map(doc => (
+                <a key={doc.id} href={mediaUrl(doc.file_url)} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400">
+                  <FileText size={14} className="shrink-0" />
+                  <span className="truncate">{doc.title}</span>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <span className="text-sm text-slate-800 dark:text-slate-200">—</span>
+          )}
         </div>
       </div>
     </div>
