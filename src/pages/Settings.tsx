@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Upload, X, CalendarDays, AlertTriangle, CheckCircle2, BookOpen, Trash2, Plus, Pencil, Check, Download, Database, FileUp, DollarSign } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Upload, X, CalendarDays, AlertTriangle, CheckCircle2, BookOpen, Trash2, Plus, Pencil, Check, Download, Database, FileUp, DollarSign, Lock, FileText, Wand2 } from 'lucide-react';
 import type { Subject } from '../types';
-import { api, type ClassRecord, type Teacher as TeacherRaw, type AcademicYear, type Term } from '../api/client';
+import { api, type ClassRecord, type Teacher as TeacherRaw, type AcademicYear, type Term, type MarksSettings } from '../api/client';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useBranding } from '../context/BrandingContext';
 
@@ -43,6 +44,67 @@ function downloadFile(filename: string, content: string, mime = 'text/csv') {
   URL.revokeObjectURL(url);
 }
 
+// RFC4180-ish CSV parser: handles quoted fields, embedded commas/newlines, "" escapes.
+function parseCSV(text: string): string[][] {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // strip BOM
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = '';
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') inQuotes = true;
+    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === '\r') { /* skip — \n (or EOF) closes the row */ }
+    else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
+    else field += c;
+  }
+  if (field !== '' || row.length > 0) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+
+// Maps a spreadsheet column header to the CreateStudentInput field it feeds,
+// accepting common English/French synonyms so exports from other systems still work.
+const STUDENT_HEADER_ALIASES: Record<string, string[]> = {
+  studentNumber:  ['studentnumber', 'studentno', 'studentid', 'matricule', 'id'],
+  firstName:      ['firstname', 'prenom'],
+  lastName:       ['lastname', 'nom', 'surname'],
+  dateOfBirth:    ['dateofbirth', 'dob', 'birthdate', 'datedenaissance'],
+  gender:         ['gender', 'sexe', 'sex'],
+  className:      ['class', 'classe'],
+  gradeLevelName: ['gradelevel', 'grade', 'niveau'],
+  guardianName:   ['guardianname', 'guardian', 'parent', 'nomduparent'],
+  guardianPhone:  ['guardianphone', 'parentphone', 'telephoneparent', 'phone'],
+  admissionDate:  ['admissiondate', 'dateadmission', 'dateinscription'],
+  isActive:       ['active', 'actif', 'status'],
+};
+function stripDiacritics(s: string): string {
+  return s.normalize('NFD').split('').filter(ch => {
+    const code = ch.charCodeAt(0);
+    return !(code >= 0x0300 && code <= 0x036f);
+  }).join('');
+}
+const normalizeHeader = (h: string) => stripDiacritics(h.toLowerCase()).replace(/[^a-z0-9]/g, '');
+function matchStudentHeader(h: string): string | null {
+  const norm = normalizeHeader(h);
+  for (const [key, aliases] of Object.entries(STUDENT_HEADER_ALIASES)) {
+    if (normalizeHeader(key) === norm || aliases.some(a => normalizeHeader(a) === norm)) return key;
+  }
+  return null;
+}
+
+// datetime-local inputs need "YYYY-MM-DDTHH:mm" in local time; ISO strings from the API are UTC.
+function toLocalInput(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export default function Settings() {
   const { t, lang } = useLanguage();
   const { logoUrl, schoolName, schoolSub, schoolInfo, setLogoUrl, setSchoolName, setSchoolSub, setSchoolInfo } = useBranding();
@@ -75,6 +137,12 @@ export default function Settings() {
   const fileRef   = useRef<HTMLInputElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
+  const [dragStudentImport, setDragStudentImport] = useState(false);
+  const [studentImportStatus, setStudentImportStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [studentImportMsg, setStudentImportMsg] = useState('');
+  const [studentImportBusy, setStudentImportBusy] = useState(false);
+  const studentImportRef = useRef<HTMLInputElement>(null);
+
   // Subjects state (loaded from API)
   const [subjectList,  setSubjectList]  = useState<Subject[]>([]);
   const [subjectSaved, setSubjectSaved] = useState(false);
@@ -103,6 +171,23 @@ export default function Settings() {
   const [newTerm, setNewTerm] = useState({ academic_year_id: '', name: 'first' as 'first'|'second'|'third', start_date: '', end_date: '', is_current: false });
   const [calSaving, setCalSaving] = useState(false);
 
+  // Marks filling period
+  const [marksEnabled, setMarksEnabled] = useState(false);
+  const [marksOpensAt, setMarksOpensAt] = useState('');
+  const [marksClosesAt, setMarksClosesAt] = useState('');
+  const [marksIsOpenNow, setMarksIsOpenNow] = useState(true);
+  const [marksSaving, setMarksSaving] = useState(false);
+  const [marksSaved, setMarksSaved] = useState(false);
+  const [marksError, setMarksError] = useState<string | null>(null);
+
+  // Report card PDF template
+  const [rcTemplateName, setRcTemplateName] = useState<string | null>(null);
+  const [rcTemplateEnabled, setRcTemplateEnabled] = useState(false);
+  const [rcTemplateHasFields, setRcTemplateHasFields] = useState(false);
+  const [rcUploading, setRcUploading] = useState(false);
+  const [rcUploadError, setRcUploadError] = useState<string | null>(null);
+  const rcFileRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     Promise.all([
       api.getClasses(),
@@ -111,13 +196,26 @@ export default function Settings() {
       api.getTerms(),
       api.getSubjects(),
       api.getSchool().catch(() => null),
-    ]).then(([classes, teachers, years, terms, subjects, school]) => {
+      api.getMarksSettings().catch(() => null),
+      api.getReportCardTemplate().catch(() => null),
+    ]).then(([classes, teachers, years, terms, subjects, school, marks, rcTemplate]) => {
       setClassList(classes);
       setTeachersList(teachers);
       setAcademicYears(years);
       setAllTerms(terms);
       if (years.length > 0) setNewTerm(prev => ({ ...prev, academic_year_id: years[0].id }));
       setSubjectList(subjects);
+      if (marks) {
+        setMarksEnabled(marks.is_enabled);
+        setMarksOpensAt(toLocalInput(marks.opens_at));
+        setMarksClosesAt(toLocalInput(marks.closes_at));
+        setMarksIsOpenNow(marks.is_open);
+      }
+      if (rcTemplate) {
+        setRcTemplateName(rcTemplate.file_name);
+        setRcTemplateEnabled(rcTemplate.is_enabled);
+        setRcTemplateHasFields((rcTemplate.fields?.length ?? 0) > 0);
+      }
       if (school) {
         const mapped = {
           name:        school.name        ?? '',
@@ -133,7 +231,12 @@ export default function Settings() {
         if (school.name) setSchoolName(school.name);
       }
     }).catch(console.error);
-  }, [setSchoolInfo, setSchoolName]);
+    // Runs once on mount only — setSchoolInfo/setSchoolName from BrandingContext are
+    // recreated on every provider render, so including them here caused an infinite
+    // fetch loop that kept overwriting any in-progress edits on this page (e.g. the
+    // marks-filling-period checkbox snapping back right after being toggled).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const setCurrentYear = async (id: string) => {
     const found = academicYears.find(y => y.id === id);
@@ -176,6 +279,45 @@ export default function Settings() {
       setNewTerm(prev => ({ ...prev, name: 'first', start_date: '', end_date: '', is_current: false }));
     } catch (err) { console.error(err); }
     setCalSaving(false);
+  };
+
+  const saveMarksSettings = async () => {
+    setMarksError(null);
+    if (marksEnabled && marksOpensAt && marksClosesAt && new Date(marksClosesAt) <= new Date(marksOpensAt)) {
+      setMarksError(lbl('Closing time must be after the opening time.', 'La date de clôture doit être après la date d’ouverture.'));
+      return;
+    }
+    setMarksSaving(true);
+    try {
+      const updated: MarksSettings = await api.updateMarksSettings({
+        is_enabled: marksEnabled,
+        opens_at: marksOpensAt ? new Date(marksOpensAt).toISOString() : null,
+        closes_at: marksClosesAt ? new Date(marksClosesAt).toISOString() : null,
+      });
+      setMarksIsOpenNow(updated.is_open);
+      setMarksSaved(true);
+      setTimeout(() => setMarksSaved(false), 2000);
+    } catch (err) { console.error(err); setMarksError(lbl('Could not save.', 'Échec de la sauvegarde.')); }
+    setMarksSaving(false);
+  };
+
+  const handleRcTemplateUpload = async (file: File) => {
+    setRcUploadError(null);
+    if (file.type !== 'application/pdf') {
+      setRcUploadError(lbl('Please choose a PDF file.', 'Veuillez choisir un fichier PDF.'));
+      return;
+    }
+    setRcUploading(true);
+    try {
+      const updated = await api.uploadReportCardTemplate(file);
+      setRcTemplateName(updated.file_name);
+      setRcTemplateEnabled(updated.is_enabled);
+      setRcTemplateHasFields((updated.fields?.length ?? 0) > 0);
+    } catch (err) {
+      console.error(err);
+      setRcUploadError(lbl('Upload failed.', 'Échec du téléchargement.'));
+    }
+    setRcUploading(false);
   };
 
   const addClassEntry = async () => {
@@ -425,6 +567,64 @@ export default function Settings() {
     };
     reader.readAsText(file);
   };
+
+  const handleImportStudentsCSV = (file: File) => {
+    setStudentImportStatus('idle');
+    setStudentImportBusy(true);
+    const reader = new FileReader();
+    reader.onload = async e => {
+      try {
+        const text = e.target?.result as string;
+        const rows = parseCSV(text);
+        if (rows.length < 2) throw new Error('empty');
+
+        const keys = rows[0].map(matchStudentHeader);
+        if (!keys.includes('firstName') || !keys.includes('lastName')) {
+          throw new Error('missing required columns');
+        }
+
+        const students = rows.slice(1).map(r => {
+          const obj: Record<string, string> = {};
+          keys.forEach((key, idx) => {
+            if (!key) return;
+            const val = (r[idx] ?? '').trim();
+            if (val === '') return;
+            obj[key] = val;
+          });
+          return obj;
+        }).filter(o => o.firstName || o.lastName);
+
+        if (students.length === 0) throw new Error('no rows');
+
+        const result = await api.importStudents(students);
+        if (result.errors.length > 0) {
+          setStudentImportStatus(result.created > 0 ? 'success' : 'error');
+          const details = result.errors.slice(0, 5).map(er => lbl(`row ${er.row}: ${er.reason}`, `ligne ${er.row} : ${er.reason}`)).join('; ');
+          setStudentImportMsg(lbl(
+            `Imported ${result.created} student(s). ${result.errors.length} row(s) skipped — ${details}${result.errors.length > 5 ? '…' : ''}`,
+            `${result.created} élève(s) importé(s). ${result.errors.length} ligne(s) ignorée(s) — ${details}${result.errors.length > 5 ? '…' : ''}`
+          ));
+        } else {
+          setStudentImportStatus('success');
+          setStudentImportMsg(lbl(`Imported ${result.created} student(s) successfully.`, `${result.created} élève(s) importé(s) avec succès.`));
+        }
+      } catch (err) {
+        setStudentImportStatus('error');
+        setStudentImportMsg(lbl(
+          'Invalid file. Use a .csv with at least First Name and Last Name columns.',
+          'Fichier invalide. Utilisez un .csv avec au moins les colonnes Prénom et Nom.'
+        ));
+        console.error(err);
+      }
+      setStudentImportBusy(false);
+    };
+    reader.readAsText(file);
+  };
+
+  const downloadStudentTemplate = () => downloadFile('students-template.csv', toCSV(
+    ['Student Number', 'First Name', 'Last Name', 'Date of Birth', 'Gender', 'Class', 'Grade Level', 'Guardian Name', 'Guardian Phone', 'Admission Date', 'Active'],
+    [],
+  ));
 
   const gradingScale = [
     { grade: 'A+', min: 90, max: 100, remarkEn: 'Excellent',     remarkFr: 'Excellent'   },
@@ -1139,10 +1339,77 @@ export default function Settings() {
               {importMsg}
             </div>
           )}
+        </div>
+
+        <div className="border-t border-slate-100" />
+
+        {/* Import students from CSV/Excel */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              {lbl('Import Students (CSV)', 'Importer des élèves (CSV)')}
+            </p>
+            <button
+              onClick={downloadStudentTemplate}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-700"
+            >
+              {lbl('Download template', 'Télécharger le modèle')}
+            </button>
+          </div>
+
+          <div
+            onClick={() => !studentImportBusy && studentImportRef.current?.click()}
+            onDragOver={e => { e.preventDefault(); setDragStudentImport(true); }}
+            onDragLeave={() => setDragStudentImport(false)}
+            onDrop={e => {
+              e.preventDefault(); setDragStudentImport(false);
+              const f = e.dataTransfer.files[0];
+              if (f) handleImportStudentsCSV(f);
+            }}
+            className={[
+              'flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer py-8 transition-colors',
+              studentImportBusy ? 'opacity-60 pointer-events-none' : '',
+              dragStudentImport ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 hover:border-indigo-300 hover:bg-slate-50',
+            ].join(' ')}
+          >
+            <FileUp size={24} className={dragStudentImport ? 'text-indigo-500' : 'text-slate-400'} />
+            <p className="text-sm font-medium text-slate-600">
+              {studentImportBusy
+                ? lbl('Importing…', 'Importation…')
+                : lbl('Drop a .csv of students here, or click to browse', 'Déposez un .csv d\'élèves ici, ou cliquez pour parcourir')}
+            </p>
+            <p className="text-xs text-slate-400">
+              {lbl('Columns: Student Number, First/Last Name, DOB, Gender, Class, Grade Level, Guardian Name/Phone, Admission Date, Active', 'Colonnes : Matricule, Prénom/Nom, Date de naissance, Sexe, Classe, Niveau, Nom/Téléphone du parent, Date d\'inscription, Actif')}
+            </p>
+          </div>
+
+          <input
+            ref={studentImportRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0];
+              if (f) handleImportStudentsCSV(f);
+              e.target.value = '';
+            }}
+          />
+
+          {studentImportStatus !== 'idle' && (
+            <div className={[
+              'mt-3 flex items-start gap-2 text-sm rounded-lg px-4 py-3',
+              studentImportStatus === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200',
+            ].join(' ')}>
+              {studentImportStatus === 'success'
+                ? <CheckCircle2 size={16} className="shrink-0 mt-0.5" />
+                : <AlertTriangle size={16} className="shrink-0 mt-0.5" />}
+              {studentImportMsg}
+            </div>
+          )}
 
           <p className="text-xs text-slate-400 mt-3 flex items-center gap-1">
             <AlertTriangle size={11} />
-            {lbl('Note: student and teacher records are read-only in the current version.', 'Note : les données élèves et enseignants sont en lecture seule dans cette version.')}
+            {lbl('Note: teacher records are still read-only in the current version.', 'Note : les données enseignants restent en lecture seule dans cette version.')}
           </p>
         </div>
       </div>
@@ -1242,6 +1509,114 @@ export default function Settings() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* ── Marks Filling Period ──────────────────────────────── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+            <Lock size={18} className="text-indigo-500" />
+            {lbl('Marks Filling Period', 'Période de saisie des notes')}
+          </h3>
+          {marksEnabled && (
+            marksIsOpenNow ? (
+              <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-medium flex items-center gap-1">
+                <CheckCircle2 size={12} /> {lbl('Open now — teachers can enter marks', 'Ouvert — les enseignants peuvent saisir les notes')}
+              </span>
+            ) : (
+              <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded font-medium flex items-center gap-1">
+                <AlertTriangle size={12} /> {lbl('Closed — marks entry locked for teachers', 'Fermé — la saisie des notes est verrouillée')}
+              </span>
+            )
+          )}
+        </div>
+
+        <p className="text-sm text-slate-500">
+          {lbl(
+            'Define the window during which teachers can enter or edit student marks in the teacher portal. Outside this window, the marks entry section becomes read-only for teachers.',
+            'Définissez la période pendant laquelle les enseignants peuvent saisir ou modifier les notes des élèves dans le portail enseignant. En dehors de cette période, la saisie des notes est en lecture seule pour les enseignants.'
+          )}
+        </p>
+
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <input type="checkbox" checked={marksEnabled} onChange={e => setMarksEnabled(e.target.checked)} className="accent-indigo-600" />
+          {lbl('Restrict marks entry to a specific period', 'Restreindre la saisie des notes à une période précise')}
+        </label>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">{lbl('Opens at', 'Ouvre le')}</label>
+            <input type="datetime-local" value={marksOpensAt} disabled={!marksEnabled} onChange={e => setMarksOpensAt(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-slate-500 mb-1">{lbl('Closes at', 'Ferme le')}</label>
+            <input type="datetime-local" value={marksClosesAt} disabled={!marksEnabled} onChange={e => setMarksClosesAt(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-400" />
+          </div>
+        </div>
+
+        {marksError && (
+          <p className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {marksError}</p>
+        )}
+
+        <button onClick={saveMarksSettings} disabled={marksSaving}
+          className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+          {marksSaving ? lbl('Saving…', 'Enregistrement…') : marksSaved ? t.common.saved : t.settings.saveChanges}
+        </button>
+      </div>
+
+      {/* ── Report Card PDF Template ──────────────────────────── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+        <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+          <FileText size={18} className="text-indigo-500" />
+          {lbl('Report Card Template', 'Modèle de bulletin')}
+        </h3>
+
+        <p className="text-sm text-slate-500">
+          {lbl(
+            'Upload a PDF to use as the visual layout for report cards, then use the designer to place data fields on top of it once. From then on, every student’s report card generates automatically using that layout.',
+            'Téléchargez un PDF à utiliser comme mise en page des bulletins, puis utilisez le concepteur pour y placer les champs de données une seule fois. Ensuite, le bulletin de chaque élève sera généré automatiquement selon cette mise en page.'
+          )}
+        </p>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <input ref={rcFileRef} type="file" accept="application/pdf" className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleRcTemplateUpload(f); e.target.value = ''; }} />
+          <button onClick={() => rcFileRef.current?.click()} disabled={rcUploading}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            <Upload size={14} /> {rcUploading ? lbl('Uploading…', 'Téléchargement…') : rcTemplateName ? lbl('Replace PDF', 'Remplacer le PDF') : lbl('Upload PDF', 'Télécharger un PDF')}
+          </button>
+
+          {rcTemplateName && (
+            <>
+              <span className="text-sm text-slate-600">{rcTemplateName}</span>
+              <Link to="/report-card-template"
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+                <Wand2 size={14} /> {lbl('Open Template Designer', 'Ouvrir le concepteur de modèle')}
+              </Link>
+            </>
+          )}
+        </div>
+
+        {rcUploadError && (
+          <p className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {rcUploadError}</p>
+        )}
+
+        {rcTemplateName && (
+          rcTemplateEnabled ? (
+            <p className="text-xs bg-emerald-50 text-emerald-700 px-3 py-2 rounded-lg inline-flex items-center gap-1">
+              <CheckCircle2 size={12} /> {lbl('This template is active — report cards use it now.', 'Ce modèle est actif — les bulletins l’utilisent maintenant.')}
+            </p>
+          ) : (
+            <p className="text-xs bg-amber-50 text-amber-700 px-3 py-2 rounded-lg inline-flex items-center gap-1">
+              <AlertTriangle size={12} />
+              {rcTemplateHasFields
+                ? lbl('Uploaded but not enabled yet — enable it in the designer.', 'Téléchargé mais pas encore activé — activez-le dans le concepteur.')
+                : lbl('Uploaded — open the designer to place fields and enable it.', 'Téléchargé — ouvrez le concepteur pour placer les champs et l’activer.')}
+            </p>
+          )
+        )}
       </div>
 
       {/* ── Grading Scale ─────────────────────────────────────── */}

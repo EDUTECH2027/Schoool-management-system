@@ -18,6 +18,7 @@ import TeacherPayment  from '../pages/TeacherPayment';
 import Certificates    from '../pages/Certificates';
 import UserManagement  from '../pages/admin/UserManagement';
 import AdminWithdrawals from '../pages/admin/AdminWithdrawals';
+import ReportCardTemplateDesigner from '../pages/admin/ReportCardTemplateDesigner';
 
 export default function AdminRoutes() {
   return (
@@ -36,6 +37,7 @@ export default function AdminRoutes() {
         <Route path="timetable"         element={<Timetable        />} />
         <Route path="parents"           element={<Parents          />} />
         <Route path="settings"          element={<Settings         />} />
+        <Route path="report-card-template" element={<ReportCardTemplateDesigner />} />
         <Route path="announcements"     element={<Announcements    />} />
         <Route path="email-alerts"      element={<EmailAlerts      />} />
         <Route path="discussion-forums" element={<DiscussionForums />} />

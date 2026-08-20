@@ -99,6 +99,11 @@ export const api = {
     request<Term>('PUT', `/academic/terms/${id}`, data),
   getGradeLevels: () => cachedGet<GradeLevel[]>('grade-levels', '/academic/grade-levels'),
 
+  // ── Marks filling period ────────────────────────────────────────
+  getMarksSettings:    () => request<MarksSettings>('GET', '/marks-settings'),
+  updateMarksSettings: (data: { is_enabled: boolean; opens_at: string | null; closes_at: string | null }) =>
+    request<MarksSettings>('PUT', '/marks-settings', data),
+
   // ── Subjects ─────────────────────────────────────────────────────
   getSubjects:    () => cachedGet<Subject[]>('subjects', '/subjects'),
   createSubject:  (data: Partial<Subject>) => request<Subject>('POST', '/subjects', data).then(r => { refCache.delete('subjects'); return r; }),
@@ -150,6 +155,8 @@ export const api = {
   },
   updateStudent: (id: string, data: Partial<Omit<Student, 'documents'>>) => request<Student>('PUT', `/students/${id}`, data),
   deleteStudent: (id: string) => request<void>('DELETE', `/students/${id}`),
+  importStudents: (students: Record<string, string>[]) =>
+    request<{ created: number; errors: { row: number; reason: string }[] }>('POST', '/students/import', { students }),
 
   // ── Parents ──────────────────────────────────────────────────────
   getParents:   (params?: Record<string, string>) =>
@@ -197,6 +204,16 @@ export const api = {
     request<AnnualSummary>('GET', `/report-cards/annual-summary${toQS(params)}`),
   setReportCardStatus:  (id: string, status: string) =>
     request<ReportCard>('PATCH', `/report-cards/${id}/status`, { status }),
+
+  // ── Report Card PDF Template ────────────────────────────────────
+  getReportCardTemplate:    () => request<ReportCardTemplate>('GET', '/report-card-template'),
+  uploadReportCardTemplate: (file: File) => {
+    const fd = new FormData();
+    fd.append('file', file);
+    return uploadRequest<ReportCardTemplate>('/report-card-template/upload', fd);
+  },
+  updateReportCardTemplate: (data: { is_enabled: boolean; page_width?: number | null; page_height?: number | null; fields?: unknown[] }) =>
+    request<ReportCardTemplate>('PUT', '/report-card-template', data),
 
   // ── Certificates ─────────────────────────────────────────────────
   getCertificates: (params?: Record<string, string>) =>
@@ -431,6 +448,7 @@ export interface AuthUser {
 export interface School { id: string; name: string; code: string; address: string; phone: string; email: string; head_teacher: string; motto: string; logo_url?: string; }
 export interface AcademicYear { id: string; label: string; start_date: string; end_date: string; is_current: number; }
 export interface Term { id: string; academic_year_id: string; name: string; start_date: string; end_date: string; is_current: number; }
+export interface MarksSettings { is_enabled: boolean; opens_at: string | null; closes_at: string | null; is_open: boolean; }
 export interface GradeLevel { id: string; name: string; sort_order: number; }
 export interface Subject { id: string; name: string; code: string; coefficient: number; }
 export interface Teacher { id: string; first_name: string; last_name: string; email: string; phone: string; gender: string; subjects: string[]; class_assigned?: string; qualification: string; join_date: string; is_active: number; documents?: { id: string; title: string; file_url: string; created_at: string }[]; }
@@ -455,6 +473,7 @@ export interface Mark { id: string; student_id: string; student_name: string; su
 export interface ReportCard { id: string; student_id: string; student_name: string; term_name: string; academic_year: string; class_name: string; percentage: number; sequence1_average?: number; sequence2_average?: number; class_position: number; out_of?: number; status: string; conduct: string; entries: ReportCardEntry[]; }
 export interface ReportCardEntry { subject_id: string; subject_name: string; ca_score: number; exam_score: number; total_score: number; coefficient?: number; grade: string; position?: number; teacher_comment?: string; }
 export interface AnnualSummary { terms: { first: number | null; second: number | null; third: number | null }; termsFound: number; finalAverage: number | null; }
+export interface ReportCardTemplate { id: string; is_enabled: boolean; file_path: string | null; file_name: string | null; page_width: number | null; page_height: number | null; fields: unknown[]; }
 export interface Payment { id: string; fee_record_id: string; amount: number; method: string; reference: string; payment_date: string; receipt_number: string; }
 export interface FeeRecord { id: string; student_id: string; student_name: string; student_number: string; class_id: string; class_name: string; fee_name: string; academic_year: string; amount_due: number; amount_paid: number; balance: number; status: string; due_date: string; payments: Payment[]; }
 export interface FeesSummary { total_due: number; total_collected: number; total_pending: number; paid_count: number; partial_count: number; overdue_count: number; total_records: number; }

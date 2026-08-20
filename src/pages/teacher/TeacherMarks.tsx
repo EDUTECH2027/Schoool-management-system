@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Save } from 'lucide-react';
+import { Save, Lock } from 'lucide-react';
 import { api } from '../../api/client';
 import type { ClassRecord, Student, Mark, Term, Subject } from '../../api/client';
 
@@ -25,16 +25,18 @@ export default function TeacherMarks() {
   const [rows, setRows] = useState<MarkRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [marksOpen, setMarksOpen] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.portalTeacherClasses(), api.getTerms(), api.getSubjects()])
-      .then(([cls, trm, subj]) => {
+    Promise.all([api.portalTeacherClasses(), api.getTerms(), api.getSubjects(), api.getMarksSettings().catch(() => null)])
+      .then(([cls, trm, subj, marksSettings]) => {
         setClasses(cls);
         setTerms(trm);
         setSubjects(subj);
         if (cls[0]) setClassId(cls[0].id);
         if (trm[0]) setTermId(trm[0].id);
         if (subj[0]) { setSubjectId(subj[0].id); setSubjectName(subj[0].name); }
+        if (marksSettings) setMarksOpen(marksSettings.is_open);
       }).catch(() => {});
   }, []);
 
@@ -73,6 +75,13 @@ export default function TeacherMarks() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Mark Entry</h1>
 
+      {!marksOpen && (
+        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm px-4 py-3 rounded-lg border border-amber-200 dark:border-amber-800">
+          <Lock size={16} className="shrink-0" />
+          The marks filling period is currently closed. Entries are read-only until an admin reopens it.
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-3">
         <select value={classId} onChange={e => setClassId(e.target.value)} className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
           {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -101,12 +110,12 @@ export default function TeacherMarks() {
                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.student_name}</td>
                 <td className="px-4 py-3 text-slate-500">{row.student_number}</td>
                 <td className="px-4 py-2">
-                  <input type="number" min={0} max={100} value={row.ca_score} onChange={e => update(i, 'ca_score', e.target.value)}
-                    className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200" />
+                  <input type="number" min={0} max={100} value={row.ca_score} disabled={!marksOpen} onChange={e => update(i, 'ca_score', e.target.value)}
+                    className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </td>
                 <td className="px-4 py-2">
-                  <input type="number" min={0} max={100} value={row.exam_score} onChange={e => update(i, 'exam_score', e.target.value)}
-                    className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200" />
+                  <input type="number" min={0} max={100} value={row.exam_score} disabled={!marksOpen} onChange={e => update(i, 'exam_score', e.target.value)}
+                    className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </td>
                 <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{Math.round((row.ca_score + row.exam_score) / 2)}</td>
               </tr>
@@ -115,7 +124,7 @@ export default function TeacherMarks() {
         </table>
       </div>
 
-      <button onClick={save} disabled={saving || rows.length === 0}
+      <button onClick={save} disabled={saving || rows.length === 0 || !marksOpen}
         className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
         <Save size={15} /> {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Marks'}
       </button>

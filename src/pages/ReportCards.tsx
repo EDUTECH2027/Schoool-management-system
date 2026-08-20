@@ -3,10 +3,11 @@ import { Printer, Eye, Award, X, RefreshCw, BookOpen, Download } from 'lucide-re
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useBranding } from '../context/BrandingContext';
-import { api, type ClassRecord, type Student, type AnnualSummary } from '../api/client';
+import { api, mediaUrl, type ClassRecord, type Student, type AnnualSummary, type ReportCardTemplate } from '../api/client';
 import { useLanguage } from '../i18n/LanguageContext';
 import { StatusBadge } from '../composants/ui/Badge';
 import { clsx } from 'clsx';
+import { fillTemplatePdf, type TemplateField } from '../utils/reportCardTemplate';
 
 // Raw DB response types (snake_case)
 type RcEntry = {
@@ -215,6 +216,9 @@ export default function ReportCards() {
   const [previewRc,   setPreviewRc]   = useState<RcRecord | null>(null);
   const [printList,   setPrintList]   = useState<RcRecord[] | null>(null);
   const [annualSummary, setAnnualSummary] = useState<AnnualSummary | null>(null);
+  const [rcTemplate,  setRcTemplate]  = useState<ReportCardTemplate | null>(null);
+
+  useEffect(() => { api.getReportCardTemplate().then(setRcTemplate).catch(() => {}); }, []);
 
   // Fetch the Final Annual Average whenever a student's report card is previewed
   useEffect(() => {
@@ -293,9 +297,31 @@ export default function ReportCards() {
     }, 300);
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadPdf = async () => {
     const cards = studentRows.filter(r => r.rc !== null).map(r => r.rc!);
     if (cards.length === 0) return;
+
+    const fname = `report-cards-${(selectedClass?.name ?? 'class').replace(/\s+/g, '-')}-${selectedTerm ? termLabel(selectedTerm) : 'term'}.pdf`.toLowerCase();
+
+    // Use the admin-configured PDF template when one is enabled and mapped;
+    // otherwise fall back to the built-in hand-drawn layout below.
+    if (rcTemplate?.is_enabled && rcTemplate.file_path && (rcTemplate.fields?.length ?? 0) > 0) {
+      try {
+        const templateBytes = await fetch(mediaUrl(rcTemplate.file_path)).then(r => r.arrayBuffer());
+        const pdfBytes = await fillTemplatePdf(templateBytes, rcTemplate.fields as TemplateField[], cards, schoolInfo, lang);
+        const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = Object.assign(document.createElement('a'), { href: url, download: fname });
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        return;
+      } catch (err) {
+        console.error('[report card template]', err);
+        // fall through to the default generator below
+      }
+    }
 
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const X = 14;
@@ -481,7 +507,6 @@ export default function ReportCards() {
         X + W / 2, y, { align: 'center' });
     });
 
-    const fname = `report-cards-${(selectedClass?.name ?? 'class').replace(/\s+/g, '-')}-${selectedTerm ? termLabel(selectedTerm) : 'term'}.pdf`.toLowerCase();
     doc.save(fname);
   };
 
