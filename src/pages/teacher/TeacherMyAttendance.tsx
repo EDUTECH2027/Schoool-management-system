@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { api } from '../../api/client';
 import type { TeacherAttendanceRecord } from '../../api/client';
@@ -17,8 +17,8 @@ export default function TeacherMyAttendance() {
   const [form, setForm] = useState({ date: new Date().toISOString().slice(0, 10), status: 'absent', remarks: '' });
   const [saving, setSaving] = useState(false);
 
-  const load = () => api.portalTeacherMyAttendance(month).then(setRecords).catch(() => {});
-  useEffect(() => { load(); }, [month]);
+  const load = useCallback(() => api.portalTeacherMyAttendance(month).then(setRecords).catch(() => {}), [month]);
+  useEffect(() => { load(); }, [load]);
 
   const submit = async () => {
     setSaving(true);

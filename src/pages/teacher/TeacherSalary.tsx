@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, X } from 'lucide-react';
 import { api } from '../../api/client';
 import type { PayrollRecord, Withdrawal } from '../../api/client';
@@ -18,12 +18,12 @@ export default function TeacherSalary() {
   const [saving, setSaving] = useState(false);
   const [selectedPayroll, setSelectedPayroll] = useState<string>('');
 
-  const load = () => Promise.all([
+  const load = useCallback(() => Promise.all([
     api.portalTeacherSalary(month),
     api.portalTeacherWithdrawals(),
-  ]).then(([p, w]) => { setPayroll(p); setWithdrawals(w); }).catch(() => {});
+  ]).then(([p, w]) => { setPayroll(p); setWithdrawals(w); }).catch(() => {}), [month]);
 
-  useEffect(() => { load(); }, [month]);
+  useEffect(() => { load(); }, [load]);
 
   const current = payroll[0];
 

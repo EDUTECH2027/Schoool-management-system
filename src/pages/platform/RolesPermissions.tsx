@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2, ShieldCheck } from 'lucide-react';
 import Badge from '../../composants/ui/Badge';
 import { useAuth } from '../../context/AuthContext';
@@ -28,7 +28,7 @@ export default function RolesPermissions() {
   const [error, setError] = useState('');
   const isOwner = user?.role === 'platform_owner';
 
-  const load = () => {
+  const load = useCallback(() => {
     api.platform.getAdmins().then((rows) => {
       setAdmins(rows);
       if (!selectedAdminId && rows.length > 0) {
@@ -36,8 +36,8 @@ export default function RolesPermissions() {
         setSelectedPermissions(rows[0].permissions ?? []);
       }
     }).catch(console.error).finally(() => setLoading(false));
-  };
-  useEffect(load, []);
+  }, [selectedAdminId]);
+  useEffect(load, [load]);
 
   useEffect(() => {
     if (!selectedAdminId) return;

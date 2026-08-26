@@ -71,7 +71,7 @@ function cachedGet<T>(key: string, path: string): Promise<T> {
 
 export const api = {
   // ── Auth ─────────────────────────────────────────────────────────
-  login:  (email: string, password: string) =>
+  login:  (email: string, password = '') =>
     request<{ token: string; user: AuthUser }>('POST', '/auth/login', { email, password }),
   me:     () => request<AuthUser>('GET', '/auth/me'),
   logout: () => request<void>('POST', '/auth/logout'),

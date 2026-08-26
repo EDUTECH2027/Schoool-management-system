@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import {
   Eye, EyeOff, GraduationCap, Lock, Mail, AlertCircle, IdCard,
-  ChevronRight, Users, BookOpen, TrendingUp, Shield, Building2, School,
+  ChevronRight, Users, BookOpen, TrendingUp, Shield,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
@@ -34,7 +34,7 @@ export default function Login() {
   const { lang }                                         = useLanguage();
   const lbl = (en: string, fr: string) => lang === 'fr' ? fr : en;
 
-  const [mode, setMode] = useState<LoginMode>('admin');
+  const mode = 'admin' as LoginMode;
 
   // Administration & staff (existing flow, unchanged)
   const [email, setEmail]       = useState('');
@@ -49,21 +49,22 @@ export default function Login() {
   const [error, setError]       = useState('');
   const [loading, setLoading]   = useState(false);
 
-  const switchMode = (next: LoginMode) => {
-    setMode(next);
-    setError('');
-  };
-
   const handleAdminSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
-    if (!email.trim() || !password) {
-      setError(lbl('Please fill in all fields.', 'Veuillez remplir tous les champs.'));
+    const identifier = email.trim();
+    const isEmailLogin = identifier.includes('@');
+    if (!identifier || (isEmailLogin && !password)) {
+      setError(isEmailLogin
+        ? lbl('Please fill in all fields.', 'Veuillez remplir tous les champs.')
+        : lbl('Please enter a valid Student ID.', 'Veuillez saisir un matricule valide.'));
       return;
     }
     setLoading(true);
-    const ok = await login(email, password);
-    if (!ok) setError(lbl('Invalid email or password.', 'Email ou mot de passe incorrect.'));
+    const ok = await login(identifier, isEmailLogin ? password : '');
+    if (!ok) setError(isEmailLogin
+      ? lbl('Invalid email or password.', 'Email ou mot de passe incorrect.')
+      : lbl('Invalid Student ID.', 'Matricule invalide.'));
     setLoading(false);
   };
 
@@ -238,25 +239,6 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Role toggle */}
-            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl mb-6">
-              {([
-                { key: 'admin' as const,   label: lbl('Administration', 'Administration'), icon: Building2 },
-                { key: 'student' as const, label: lbl('Student', 'Élève'),                   icon: School },
-              ]).map(({ key, label, icon: Icon }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => switchMode(key)}
-                  className={`flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                    mode === key ? 'bg-white text-indigo-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  <Icon size={14} /> {label}
-                </button>
-              ))}
-            </div>
-
             {/* ── Administration & staff form ─────────────────────── */}
             {mode === 'admin' && (
               <form onSubmit={handleAdminSubmit} className="space-y-5" noValidate>
@@ -269,17 +251,17 @@ export default function Login() {
                       <Mail size={15} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors duration-200" />
                     </div>
                     <input
-                      type="email"
+                      type="text"
                       value={email}
                       onChange={e => { setEmail(e.target.value); setError(''); }}
-                      placeholder="admin@edutech.com"
-                      autoComplete="email"
+                      placeholder={lbl('Email or Student ID', 'Email ou matricule')}
+                      autoComplete="username"
                       className="w-full pl-10 pr-4 py-3 text-sm rounded-xl border border-slate-200 bg-slate-50 text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-400 focus:bg-white transition-all duration-200"
                     />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                {email.includes('@') && <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide">
                       {lbl('Password', 'Mot de passe')}
@@ -309,7 +291,7 @@ export default function Login() {
                       {showPw ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
-                </div>
+                </div>}
 
                 {error && (
                   <div className="flex items-center gap-2.5 px-3.5 py-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
