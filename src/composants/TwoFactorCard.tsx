@@ -45,7 +45,8 @@ export default function TwoFactorCard() {
     setBusy(true);
     try {
       const res = await api.twoFactor.enrollVerify(code.trim());
-      const { recovery_codes, enabled: _e, ...session } = res;
+      const { recovery_codes, enabled, ...session } = res;
+      void enabled;
       applySession(session);
       setRecoveryCodes(recovery_codes);
       setMode('recovery');
@@ -61,7 +62,8 @@ export default function TwoFactorCard() {
     setBusy(true); setError('');
     try {
       const res = await api.twoFactor.disable(entered.trim());
-      const { enabled: _e, ...session } = res;
+      const { enabled, ...session } = res;
+      void enabled;
       applySession(session);
       refresh();
     } catch (err) {

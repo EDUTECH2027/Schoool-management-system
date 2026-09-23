@@ -44,7 +44,8 @@ export default function TwoFactorEnrollment() {
     setBusy(true);
     try {
       const res = await api.twoFactor.enrollVerify(code.trim(), enrollToken ?? undefined);
-      const { recovery_codes, enabled: _enabled, ...session } = res;
+      const { recovery_codes, enabled, ...session } = res;
+      void enabled;
       setRecoveryCodes(recovery_codes);
       setPendingSession(session);
       setStep('recovery');
