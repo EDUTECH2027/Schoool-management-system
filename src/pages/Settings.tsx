@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Upload, X, CalendarDays, AlertTriangle, CheckCircle2, BookOpen, Trash2, Plus, Pencil, Check, Download, Database, FileUp, DollarSign, Lock, FileText, Wand2 } from 'lucide-react';
@@ -5,6 +10,8 @@ import type { Subject } from '../types';
 import { api, type ClassRecord, type Teacher as TeacherRaw, type AcademicYear, type Term, type MarksSettings } from '../api/client';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useBranding } from '../context/BrandingContext';
+import TwoFactorCard from '../composants/TwoFactorCard';
+import AttendanceQrCard from '../composants/AttendanceQrCard';
 
 interface FeeInstallment {
   label:   string;
@@ -128,6 +135,8 @@ export default function Settings() {
 
   const [brandSaved,   setBrandSaved]   = useState(false);
   const [infoSaved,    setInfoSaved]    = useState(false);
+  const [require2fa,   setRequire2fa]   = useState(false);
+  const [require2faSaved, setRequire2faSaved] = useState(false);
   const [gradeSaved,   setGradeSaved]   = useState(false);
   const [feeSaved,     setFeeSaved]     = useState(false);
   const [dragging, setDragging]     = useState(false);
@@ -229,6 +238,7 @@ export default function Settings() {
         setInfo(mapped);
         setSchoolInfo(mapped);
         if (school.name) setSchoolName(school.name);
+        setRequire2fa(!!school.require_admin_2fa);
       }
     }).catch(console.error);
     // Runs once on mount only — setSchoolInfo/setSchoolName from BrandingContext are
@@ -774,6 +784,48 @@ export default function Settings() {
             className="mt-5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
           >
             {infoSaved ? t.common.saved : t.settings.saveChanges}
+          </button>
+        </div>
+      </div>
+
+      {/* ── Security ──────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        <TwoFactorCard />
+        <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-9 h-9 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0">
+              <Lock size={16} className="text-indigo-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-slate-800">{lbl('Administrator security', 'Sécurité administrateurs')}</h3>
+              <p className="text-xs text-slate-400">{lbl('Applies to every admin of this school', 'S’applique à chaque administrateur de cette école')}</p>
+            </div>
+          </div>
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={require2fa}
+              onChange={e => setRequire2fa(e.target.checked)}
+              className="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <span className="text-sm text-slate-700">
+              {lbl('Require two-factor authentication for all administrators', 'Exiger la double authentification pour tous les administrateurs')}
+              <span className="block text-xs text-slate-400 mt-0.5">
+                {lbl('Admins without 2FA will be asked to set it up at their next sign-in.', 'Les administrateurs sans 2FA devront la configurer à leur prochaine connexion.')}
+              </span>
+            </span>
+          </label>
+          <button
+            onClick={async () => {
+              try {
+                await api.updateSchool({ require_admin_2fa: require2fa });
+                setRequire2faSaved(true);
+                setTimeout(() => setRequire2faSaved(false), 2000);
+              } catch (err) { console.error(err); }
+            }}
+            className="mt-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          >
+            {require2faSaved ? t.common.saved : t.settings.saveChanges}
           </button>
         </div>
       </div>
@@ -1510,6 +1562,9 @@ export default function Settings() {
           </div>
         </div>
       </div>
+
+      {/* ── Teacher Attendance QR Code ───────────────────────────── */}
+      <AttendanceQrCard />
 
       {/* ── Marks Filling Period ──────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">

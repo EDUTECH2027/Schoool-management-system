@@ -1,10 +1,14 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useState } from 'react';
 import { KeyRound } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../api/client';
 
 export default function ForcePasswordChange() {
-  const { user, logout, clearMustChangePassword, pendingTempPassword } = useAuth();
+  const { user, logout, changePassword, pendingTempPassword } = useAuth();
   // If we already know the temporary password (e.g. a student's silent
   // first login with the known default), skip re-asking for it.
   const [currentPassword, setCurrentPassword] = useState(pendingTempPassword ?? '');
@@ -16,8 +20,8 @@ export default function ForcePasswordChange() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    if (newPassword.length < 6) {
-      setError('New password must be at least 6 characters.');
+    if (newPassword.length < 8) {
+      setError('New password must be at least 8 characters.');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -26,8 +30,7 @@ export default function ForcePasswordChange() {
     }
     setSaving(true);
     try {
-      await api.changePassword(currentPassword, newPassword);
-      clearMustChangePassword();
+      await changePassword(currentPassword, newPassword);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');
     } finally {
@@ -62,12 +65,12 @@ export default function ForcePasswordChange() {
           )}
           <div>
             <label className="text-xs font-medium text-slate-600">New Password</label>
-            <input required type="password" minLength={6} value={newPassword} onChange={e => setNewPassword(e.target.value)}
+            <input required type="password" minLength={8} value={newPassword} onChange={e => setNewPassword(e.target.value)}
               className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <div>
             <label className="text-xs font-medium text-slate-600">Confirm New Password</label>
-            <input required type="password" minLength={6} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
+            <input required type="password" minLength={8} value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)}
               className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
           </div>
           <button disabled={saving} type="submit"

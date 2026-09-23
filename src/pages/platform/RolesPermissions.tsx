@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2, ShieldCheck } from 'lucide-react';
 import Badge from '../../composants/ui/Badge';

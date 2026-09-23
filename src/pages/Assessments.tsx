@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useState, useEffect } from 'react';
 import { Save, FileText, BarChart2, CheckCircle2, XCircle, BookOpen } from 'lucide-react';
 import type { Class, Student, Term, Subject } from '../types';

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { createContext, useContext, useState, type ReactNode } from 'react';
 import { school as defaultSchool } from '../data/mockData';
 

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useState, useEffect } from 'react';
 import { Search, Banknote, Plus, Receipt, X, CheckCircle } from 'lucide-react';
 import { StatusBadge } from '../composants/ui/Badge';

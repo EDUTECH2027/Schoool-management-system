@@ -1,30 +1,125 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 const BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
 
+// ── Session storage ──────────────────────────────────────────────────────────
+// Access token is short-lived; the refresh token buys a new one silently.
+const ACCESS_KEY = 'edutech_access';
+const REFRESH_KEY = 'edutech_refresh';
+
+export interface SessionPayload {
+  accessToken: string;
+  refreshToken?: string;
+  expiresIn?: number;
+  user?: AuthUser;
+}
+
 function getToken(): string | null {
+  try { return localStorage.getItem(ACCESS_KEY); } catch { return null; }
+}
+
+export function setSession(data: SessionPayload): void {
   try {
-    const stored = localStorage.getItem('auth_user');
-    if (!stored) return null;
-    const parsed = JSON.parse(stored);
-    return parsed.token ?? null;
-  } catch {
-    return null;
+    if (data.accessToken) localStorage.setItem(ACCESS_KEY, data.accessToken);
+    if (data.refreshToken) localStorage.setItem(REFRESH_KEY, data.refreshToken);
+    if (data.user) localStorage.setItem('auth_user', JSON.stringify(data.user));
+  } catch { /* storage full / unavailable */ }
+  if (data.user) {
+    window.dispatchEvent(new CustomEvent('edutech:session', { detail: data.user }));
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const token = getToken();
-  const res = await fetch(`${BASE}/api${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-  });
+export function clearSession(): void {
+  try {
+    localStorage.removeItem(ACCESS_KEY);
+    localStorage.removeItem(REFRESH_KEY);
+    localStorage.removeItem('auth_user');
+  } catch { /* ignore */ }
+}
+
+function notifyAuthLost(): void {
+  clearSession();
+  window.dispatchEvent(new Event('edutech:auth-lost'));
+}
+
+// One in-flight refresh at a time; concurrent 401s all wait on it.
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function refreshSession(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    let rt: string | null = null;
+    try { rt = localStorage.getItem(REFRESH_KEY); } catch { /* ignore */ }
+    try {
+      const res = await fetch(`${BASE}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(rt ? { refreshToken: rt } : {}),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      setSession(data);
+      return true;
+    } catch {
+      return false;
+    }
+  })();
+  const ok = await refreshInFlight;
+  refreshInFlight = null;
+  return ok;
+}
+
+const EXPIRY_CODES = new Set(['token_expired', 'token_invalid', 'token_version_stale']);
+
+async function withAuthRetry(
+  doFetch: () => Promise<Response>,
+  path: string,
+): Promise<Response> {
+  let res = await doFetch();
+  if (res.status === 401 && !path.startsWith('/auth/')) {
+    const cloned = res.clone();
+    const err = await cloned.json().catch(() => ({} as { code?: string }));
+    if (!err.code || EXPIRY_CODES.has(err.code)) {
+      if (err.code === 'token_expired' && await refreshSession()) {
+        res = await doFetch();
+      } else if (!err.code && await refreshSession()) {
+        res = await doFetch();
+      } else {
+        notifyAuthLost();
+      }
+    }
+  }
+  return res;
+}
+
+async function request<T>(method: string, path: string, body?: unknown, explicitToken?: string): Promise<T> {
+  const doFetch = () => {
+    const bearer = explicitToken ?? getToken();
+    return fetch(`${BASE}/api${path}`, {
+      method,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
+      },
+      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+    });
+  };
+
+  // A caller-supplied token (e.g. the one-time 2FA enrolment token) is not part
+  // of the refreshable session — don't try to refresh it on 401.
+  const res = explicitToken ? await doFetch() : await withAuthRetry(doFetch, path);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(err.error ?? `HTTP ${res.status}`);
+    const e = new Error(err.error ?? `HTTP ${res.status}`) as Error & { code?: string; status?: number };
+    e.code = err.code;
+    e.status = res.status;
+    throw e;
   }
 
   if (res.status === 204) return undefined as T;
@@ -34,12 +129,14 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 // For multipart uploads — no Content-Type here so the browser can set the
 // multipart boundary itself, and no JSON.stringify since the body is FormData.
 async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
-  const token = getToken();
-  const res = await fetch(`${BASE}/api${path}`, {
+  const doFetch = () => fetch(`${BASE}/api${path}`, {
     method: 'POST',
-    headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    credentials: 'include',
+    headers: { ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}) },
     body: formData,
   });
+
+  const res = await withAuthRetry(doFetch, path);
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
@@ -72,11 +169,29 @@ function cachedGet<T>(key: string, path: string): Promise<T> {
 export const api = {
   // ── Auth ─────────────────────────────────────────────────────────
   login:  (email: string, password = '') =>
-    request<{ token: string; user: AuthUser }>('POST', '/auth/login', { email, password }),
+    request<LoginResponse>('POST', '/auth/login', { email, password }),
+  loginTwoFactor: (mfa_token: string, code: string) =>
+    request<SessionPayload>('POST', '/auth/login/2fa', { mfa_token, code }),
+  refresh: (refreshToken?: string) =>
+    request<SessionPayload>('POST', '/auth/refresh', refreshToken ? { refreshToken } : {}),
   me:     () => request<AuthUser>('GET', '/auth/me'),
-  logout: () => request<void>('POST', '/auth/logout'),
+  logout: (refreshToken?: string) =>
+    request<void>('POST', '/auth/logout', refreshToken ? { refreshToken } : {}),
   changePassword: (currentPassword: string, newPassword: string) =>
-    request<{ message: string }>('PUT', '/auth/me/password', { currentPassword, newPassword }),
+    request<{ message: string } & SessionPayload>('PUT', '/auth/me/password', { currentPassword, newPassword }),
+
+  // ── Two-factor (TOTP) ────────────────────────────────────────────
+  twoFactor: {
+    status:        (token?: string) => request<TwoFactorStatus>('GET', '/auth/2fa/status', undefined, token),
+    enrollStart:   (token?: string) => request<TwoFactorEnrollStart>('POST', '/auth/2fa/enroll/start', {}, token),
+    enrollVerify:  (code: string, token?: string) =>
+      request<{ enabled: true; recovery_codes: string[] } & SessionPayload>('POST', '/auth/2fa/enroll/verify', { code }, token),
+    disable:       (code: string) => request<{ enabled: false } & SessionPayload>('POST', '/auth/2fa/disable', { code }),
+    regenerate:    (code: string) => request<{ recovery_codes: string[] }>('POST', '/auth/2fa/recovery/regenerate', { code }),
+  },
+
+  // ── License (on-prem builds) ─────────────────────────────────────
+  licenseStatus: () => request<LicenseStatus>('GET', '/license/status'),
 
   // ── Dashboard ────────────────────────────────────────────────────
   dashboard: () => request<DashboardData>('GET', '/dashboard'),
@@ -177,6 +292,19 @@ export const api = {
     request<TeacherAttendanceRecord[]>('GET', `/attendance/teachers${toQS(params)}`),
   saveTeacherAttendance:(records: unknown[]) =>
     request<{ saved: number }>('POST', '/attendance/teachers', records),
+  getTeacherAttendanceSummary: (month: string) =>
+    request<TeacherAttendanceSummary>('GET', `/attendance/teachers/summary?month=${month}`),
+
+  // ── Teacher QR attendance ────────────────────────────────────────
+  attendanceQr: {
+    getSettings:    () => request<{ arrival_threshold: string }>('GET', '/attendance-qr/settings'),
+    updateSettings: (arrival_threshold: string) =>
+      request<{ arrival_threshold: string }>('PUT', '/attendance-qr/settings', { arrival_threshold }),
+    getCurrent:  () => request<AttendanceQrCode>('GET', '/attendance-qr/current'),
+    generate:    () => request<AttendanceQrCode>('POST', '/attendance-qr/generate'),
+    revoke:      () => request<{ revoked: boolean }>('POST', '/attendance-qr/revoke'),
+    scan:        (token: string) => request<TeacherAttendanceRecord>('POST', '/attendance-qr/scan', { token }),
+  },
 
   // ── Timetable ────────────────────────────────────────────────────
   getTimetable:   (params?: Record<string, string>) =>
@@ -444,8 +572,34 @@ export interface AuthUser {
   role: 'super_admin' | 'head_teacher' | 'teacher' | 'student' | 'parent' | 'platform_owner' | 'platform_admin';
   initials: string; teacher_id?: string | null; student_id?: string | null; parent_id?: string | null;
   must_change_password?: boolean;
+  totp_enabled?: boolean;
 }
-export interface School { id: string; name: string; code: string; address: string; phone: string; email: string; head_teacher: string; motto: string; logo_url?: string; }
+
+export type LoginResponse =
+  | (SessionPayload & { mfa_required?: undefined; mfa_enroll_required?: undefined })
+  | { mfa_required: true; mfa_token: string }
+  | { mfa_enroll_required: true; enroll_token: string };
+
+export interface TwoFactorStatus {
+  enabled: boolean;
+  mandatory: boolean;
+  enrolled_at: string | null;
+  recovery_remaining: number;
+}
+export interface TwoFactorEnrollStart {
+  secret: string;
+  otpauth_url: string;
+  qr: string;
+}
+export interface LicenseStatus {
+  required: boolean;
+  valid: boolean;
+  inGrace: boolean;
+  reason?: string;
+  edition?: string | null;
+  expiresAt?: string | null;
+}
+export interface School { id: string; name: string; code: string; address: string; phone: string; email: string; head_teacher: string; motto: string; logo_url?: string; require_admin_2fa?: boolean; }
 export interface AcademicYear { id: string; label: string; start_date: string; end_date: string; is_current: number; }
 export interface Term { id: string; academic_year_id: string; name: string; start_date: string; end_date: string; is_current: number; }
 export interface MarksSettings { is_enabled: boolean; opens_at: string | null; closes_at: string | null; is_open: boolean; }
@@ -467,7 +621,21 @@ export interface CreateStudentInput {
 export interface Parent { id: string; name: string; email?: string; phone: string; relationship?: string; address?: string; occupation?: string; children?: Student[]; }
 export interface AttendanceRecord { id: string; student_id: string; student_name: string; student_number: string; class_id: string; class_name: string; date: string; status: string; remarks?: string; }
 export interface AttendanceStat { student_id: string; student_name: string; present: number; absent: number; late: number; excused: number; total: number; }
-export interface TeacherAttendanceRecord { id: string; teacher_id: string; date: string; status: string; remarks?: string; first_name: string; last_name: string; }
+export interface TeacherAttendanceRecord {
+  id: string; teacher_id: string; date: string; status: string; remarks?: string;
+  first_name: string; last_name: string;
+  scan_time?: string | null; qr_code_id?: string | null; source?: 'manual' | 'qr_scan';
+}
+export interface TeacherAttendanceSummary {
+  month: string;
+  totals: { on_time: number; late: number; absent: number; excused: number; total: number };
+  byTeacher: { teacher_id: string; teacher_name: string | null; on_time: number; late: number; absent: number; excused: number; total: number }[];
+}
+export interface AttendanceQrCode { id: string; month: string; created_at: string; expires_at: string; qr: string; }
+export interface AttendanceDetail {
+  daysPresent: number; daysOnTime: number; daysLate: number; absences: number;
+  lateEntries: { date: string; scan_time: string | null }[];
+}
 export interface ScheduleEntry { id: string; teacher_id: string; day: string; period_key: string; period_label: string; time: string; class_id: string; class_name: string; subject_name: string; room: string; first_name?: string; last_name?: string; teacher_name?: string; }
 export interface Mark { id: string; student_id: string; student_name: string; subject_id: string; subject_name: string; term_id: string; class_id: string; ca_score: number; exam_score: number; total_score: number; grade: string; remark: string; }
 export interface ReportCard { id: string; student_id: string; student_name: string; term_name: string; academic_year: string; class_name: string; percentage: number; sequence1_average?: number; sequence2_average?: number; class_position: number; out_of?: number; status: string; conduct: string; entries: ReportCardEntry[]; }
@@ -477,7 +645,7 @@ export interface ReportCardTemplate { id: string; is_enabled: boolean; file_path
 export interface Payment { id: string; fee_record_id: string; amount: number; method: string; reference: string; payment_date: string; receipt_number: string; }
 export interface FeeRecord { id: string; student_id: string; student_name: string; student_number: string; class_id: string; class_name: string; fee_name: string; academic_year: string; amount_due: number; amount_paid: number; balance: number; status: string; due_date: string; payments: Payment[]; }
 export interface FeesSummary { total_due: number; total_collected: number; total_pending: number; paid_count: number; partial_count: number; overdue_count: number; total_records: number; }
-export interface PayrollRecord { id: string; teacher_id: string; month: string; hourly_rate: number; contracted_hours: number; base_allowance: number; absence_deduction: number; late_deduction: number; hours_worked: number; absences: number; late_coming: number; bonus: number; notes: string; status: string; gross: number; absenceDeduct: number; lateDeduct: number; totalDeductions: number; netPay: number; teacher?: Teacher; }
+export interface PayrollRecord { id: string; teacher_id: string; month: string; hourly_rate: number; contracted_hours: number; base_allowance: number; absence_deduction: number; late_deduction: number; hours_worked: number; absences: number; late_coming: number; bonus: number; notes: string; status: string; gross: number; absenceDeduct: number; lateDeduct: number; totalDeductions: number; netPay: number; teacher?: Teacher; attendance_detail?: AttendanceDetail; }
 export interface Announcement { id: string; title: string; body: string; author: string; audience: string; type: 'info' | 'warning' | 'success'; is_pinned: number; created_at: string; updated_at: string; }
 export interface EmailAlert { id: string; subject: string; body: string; recipient: string; sender: string; status: string; sent_at: string; }
 export interface ForumThread { id: string; title: string; tag: string; author: string; is_pinned: number; message_count: number; created_at: string; updated_at: string; }

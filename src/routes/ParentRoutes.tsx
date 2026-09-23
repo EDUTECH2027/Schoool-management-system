@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ParentLayout          from '../composants/layout/ParentLayout';
 import ParentDashboard       from '../pages/parent/ParentDashboard';

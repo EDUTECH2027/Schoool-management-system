@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { NavLink } from 'react-router-dom';
 import { LayoutDashboard, UserRound, Users, GraduationCap, LogOut } from 'lucide-react';
 import { clsx } from 'clsx';

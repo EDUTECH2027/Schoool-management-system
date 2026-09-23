@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { X, Calendar, MapPin, Phone, BookOpen, Hash, User, FileText } from 'lucide-react';
 import type { Student } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';

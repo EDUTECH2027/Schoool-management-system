@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "license": "SEE LICENSE IN ../LICENSE",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -30,6 +31,7 @@
     "@tiptap/react": "^3.27.3",
     "@tiptap/starter-kit": "^3.27.3",
     "clsx": "^2.1.1",
+    "html5-qrcode": "^2.3.8",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "lucide-react": "^1.17.0",

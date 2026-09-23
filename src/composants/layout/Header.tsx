@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useState, useRef, useEffect } from 'react';
 import { Bell, Search, Globe, LogOut, ChevronDown, Sun, Moon, Menu } from 'lucide-react';
 import { useLocation } from 'react-router-dom';

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 export type Gender = 'male' | 'female' | 'other';
 export type TermName = 'first' | 'second' | 'third';
 export type AttendanceStatus = 'present' | 'absent' | 'late' | 'excused';

@@ -1,9 +1,17 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { Suspense, lazy } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Login from './pages/Login';
 import ForcePasswordChange from './pages/ForcePasswordChange';
+import TwoFactorChallenge from './pages/TwoFactorChallenge';
+import TwoFactorEnrollment from './pages/TwoFactorEnrollment';
+import LicenseBanner from './composants/LicenseBanner';
 
 // Each role only ever needs its own route tree — lazy-loading these means a
 // parent's session, for example, never downloads the admin/teacher/platform
@@ -23,8 +31,10 @@ function RouteLoadingFallback() {
 }
 
 function AppRoutes() {
-  const { user } = useAuth();
+  const { user, mfaToken, enrollToken } = useAuth();
 
+  if (mfaToken) return <TwoFactorChallenge />;
+  if (enrollToken) return <TwoFactorEnrollment />;
   if (!user) return <Login />;
   if (user.must_change_password) return <ForcePasswordChange />;
 
@@ -49,6 +59,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <BrowserRouter>
+          <LicenseBanner />
           <AppRoutes />
         </BrowserRouter>
       </AuthProvider>

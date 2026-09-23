@@ -1,6 +1,12 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import type { PlatformSettings as PlatformSettingsType } from '../../api/client';
+import TwoFactorCard from '../../composants/TwoFactorCard';
 
 export default function PlatformSettings() {
   const [settings, setSettings] = useState<PlatformSettingsType | null>(null);
@@ -37,6 +43,9 @@ export default function PlatformSettings() {
   return (
     <div className="max-w-lg space-y-4">
       <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Platform Settings</h2>
+
+      <TwoFactorCard />
+
       <form onSubmit={save} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-4">
         {saved && <p className="text-green-600 text-xs">Settings saved.</p>}
         <div>

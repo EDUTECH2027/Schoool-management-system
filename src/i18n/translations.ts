@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 export interface SubjectEntry {
   id: string;
   name: string;
@@ -120,7 +125,7 @@ export interface Translations {
     reportAbsence: string; behavior: string; salary: string; withdrawalRequest: string;
     myChildren: string; academicPerformance: string; feeBalance: string;
     myMarks: string; myTimetable: string; myAttendanceRecord: string;
-    reportCards: string; studentBehavior: string;
+    reportCards: string; studentBehavior: string; scanAttendance: string;
   };
   userManagement: {
     title: string; createAccount: string; resetPassword: string;
@@ -277,7 +282,7 @@ export const en: Translations = {
     myChildren: 'My Children', academicPerformance: 'Academic Performance',
     feeBalance: 'Fee Balance', myMarks: 'My Marks', myTimetable: 'My Timetable',
     myAttendanceRecord: 'My Attendance', reportCards: 'Report Cards',
-    studentBehavior: 'Student Behavior',
+    studentBehavior: 'Student Behavior', scanAttendance: 'Scan Attendance',
   },
   userManagement: {
     title: 'User Management', createAccount: 'Create Account', resetPassword: 'Reset Password',
@@ -438,7 +443,7 @@ export const fr: Translations = {
     myChildren: 'Mes Enfants', academicPerformance: 'Résultats scolaires',
     feeBalance: 'Solde des frais', myMarks: 'Mes Notes', myTimetable: 'Mon Emploi du temps',
     myAttendanceRecord: 'Mon Assiduité', reportCards: 'Bulletins de notes',
-    studentBehavior: 'Comportement des élèves',
+    studentBehavior: 'Comportement des élèves', scanAttendance: 'Scanner la présence',
   },
   userManagement: {
     title: 'Gestion des utilisateurs', createAccount: 'Créer un compte', resetPassword: 'Réinitialiser le mot de passe',

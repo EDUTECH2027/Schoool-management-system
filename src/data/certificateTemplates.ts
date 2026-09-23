@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 // Content presets (document types) and visual themes for the Certificates
 // designer. Combining N document types × M themes gives every printable
 // design without hand-authoring a component per combination.

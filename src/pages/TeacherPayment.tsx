@@ -1,8 +1,13 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useState, useEffect, useMemo } from 'react';
 import {
   Clock, UserX, AlarmClock, Edit2, X, Check, Download,
   FileDown, Search, Wallet, TrendingUp, AlertCircle,
-  CheckCircle2, ReceiptText, Settings2,
+  CheckCircle2, ReceiptText, Settings2, QrCode,
 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useBranding } from '../context/BrandingContext';
@@ -543,6 +548,45 @@ export default function TeacherPayment() {
               </div>
 
               <div className="border-t border-dashed border-slate-200" />
+
+              {/* Attendance detail — read-only, live from the centralized attendance system */}
+              {editRecord.attendance_detail && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <QrCode size={14} className="text-indigo-500" />
+                    <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wide">
+                      {lbl('Attendance This Month', 'Présence ce mois-ci')}
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 mb-2">
+                    <div className="bg-slate-50 rounded-lg px-3 py-2 text-center">
+                      <p className="text-lg font-bold text-slate-800">{editRecord.attendance_detail.daysPresent}</p>
+                      <p className="text-[11px] text-slate-400">{lbl('Days Present', 'Jours présents')}</p>
+                    </div>
+                    <div className="bg-emerald-50 rounded-lg px-3 py-2 text-center">
+                      <p className="text-lg font-bold text-emerald-600">{editRecord.attendance_detail.daysOnTime}</p>
+                      <p className="text-[11px] text-slate-400">{lbl('On Time', 'À l’heure')}</p>
+                    </div>
+                    <div className="bg-amber-50 rounded-lg px-3 py-2 text-center">
+                      <p className="text-lg font-bold text-amber-600">{editRecord.attendance_detail.daysLate}</p>
+                      <p className="text-[11px] text-slate-400">{lbl('Late', 'Retards')}</p>
+                    </div>
+                  </div>
+                  {editRecord.attendance_detail.lateEntries.length > 0 && (
+                    <div className="text-xs text-slate-500 space-y-0.5">
+                      <p className="font-semibold text-slate-600">{lbl('Late arrivals:', 'Arrivées tardives :')}</p>
+                      {editRecord.attendance_detail.lateEntries.map(e => (
+                        <p key={e.date}>
+                          {e.date}{e.scan_time ? ` — ${new Date(e.scan_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[11px] text-slate-400 mt-2">
+                    {lbl('From scanned QR attendance — the fields below are pre-filled once and remain editable.', 'D’après la présence scannée — les champs ci-dessous sont pré-remplis une fois et restent modifiables.')}
+                  </p>
+                </div>
+              )}
 
               {/* Monthly data */}
               <div>

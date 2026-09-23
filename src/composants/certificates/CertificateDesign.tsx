@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useRef, useState, type ElementType, type KeyboardEvent, type FocusEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { Award, Shield, Star, BadgeCheck } from 'lucide-react';
 

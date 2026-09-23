@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useState, useEffect, useRef } from 'react';
 import { X, GraduationCap, ChevronRight, CheckCircle, FileText, Plus } from 'lucide-react';
 import type { Teacher } from '../../types';

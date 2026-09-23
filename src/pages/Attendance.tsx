@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useState, useEffect } from 'react';
 import { CheckCircle, XCircle, Clock, AlertCircle, Save, BookOpen } from 'lucide-react';
 import type { AttendanceStatus, Class, Student } from '../types';
@@ -5,6 +10,7 @@ import { clsx } from 'clsx';
 import { useLanguage } from '../i18n/LanguageContext';
 import { api, type Teacher } from '../api/client';
 import { mapClass, mapStudent } from '../api/mappers';
+import TeacherAttendanceHistory from '../composants/TeacherAttendanceHistory';
 
 export default function Attendance() {
   const { t } = useLanguage();
@@ -480,6 +486,8 @@ export default function Attendance() {
           )}
         </div>
       )}
+
+      {activeTab === 'teachers' && <TeacherAttendanceHistory />}
 
     </div>
   );

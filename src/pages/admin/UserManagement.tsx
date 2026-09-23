@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useEffect, useState } from 'react';
 import { Plus, KeyRound, Trash2, X, RefreshCw } from 'lucide-react';
 import { api } from '../../api/client';

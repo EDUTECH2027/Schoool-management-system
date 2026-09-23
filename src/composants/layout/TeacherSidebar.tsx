@@ -1,7 +1,12 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, UserRound, Users, FileText, ClipboardCheck,
-  Calendar, MessageSquare, BadgeDollarSign, GraduationCap, LogOut,
+  Calendar, MessageSquare, BadgeDollarSign, GraduationCap, LogOut, QrCode,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -23,6 +28,7 @@ export default function TeacherSidebar() {
     { label: t.portal.studentBehavior,  to: '/teacher/behavior',      icon: MessageSquare    },
     { label: t.nav.attendance,          to: '/teacher/attendance',    icon: ClipboardCheck   },
     { label: t.portal.myAttendance,     to: '/teacher/my-attendance', icon: ClipboardCheck   },
+    { label: t.portal.scanAttendance,   to: '/teacher/scan-attendance', icon: QrCode         },
     { label: t.nav.timetable,           to: '/teacher/timetable',     icon: Calendar         },
     { label: t.portal.salary,           to: '/teacher/salary',        icon: BadgeDollarSign  },
   ];

@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { useState, useEffect } from 'react';
 import { Mail, Plus, Send, Clock, CheckCircle2, XCircle, Search, X, Trash2, Loader2 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';

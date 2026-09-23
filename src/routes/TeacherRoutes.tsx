@@ -1,3 +1,8 @@
+/*
+ * Copyright (c) 2026 [COMPANY LEGAL NAME]. All rights reserved.
+ * Proprietary and confidential. Unauthorized copying, distribution or
+ * modification of this file, via any medium, is strictly prohibited.
+ */
 import { Routes, Route, Navigate } from 'react-router-dom';
 import TeacherLayout      from '../composants/layout/TeacherLayout';
 import TeacherDashboard   from '../pages/teacher/TeacherDashboard';
@@ -6,6 +11,7 @@ import TeacherMyClass     from '../pages/teacher/TeacherMyClass';
 import TeacherMarks       from '../pages/teacher/TeacherMarks';
 import TeacherAttendance  from '../pages/teacher/TeacherAttendance';
 import TeacherMyAttendance from '../pages/teacher/TeacherMyAttendance';
+import TeacherScanAttendance from '../pages/teacher/TeacherScanAttendance';
 import TeacherTimetable   from '../pages/teacher/TeacherTimetable';
 import TeacherBehavior    from '../pages/teacher/TeacherBehavior';
 import TeacherSalary      from '../pages/teacher/TeacherSalary';
@@ -22,6 +28,7 @@ export default function TeacherRoutes() {
         <Route path="marks"         element={<TeacherMarks       />} />
         <Route path="attendance"    element={<TeacherAttendance  />} />
         <Route path="my-attendance" element={<TeacherMyAttendance />} />
+        <Route path="scan-attendance" element={<TeacherScanAttendance />} />
         <Route path="timetable"     element={<TeacherTimetable   />} />
         <Route path="behavior"      element={<TeacherBehavior    />} />
         <Route path="salary"        element={<TeacherSalary      />} />

@@ -61,8 +61,8 @@ export default function Login() {
       return;
     }
     setLoading(true);
-    const ok = await login(identifier, isEmailLogin ? password : '');
-    if (!ok) setError(isEmailLogin
+    const result = await login(identifier, isEmailLogin ? password : '');
+    if (result === 'error') setError(isEmailLogin
       ? lbl('Invalid email or password.', 'Email ou mot de passe incorrect.')
       : lbl('Invalid Student ID.', 'Matricule invalide.'));
     setLoading(false);
@@ -82,10 +82,10 @@ export default function Login() {
       // First attempt for this Student ID: try the known default password
       // silently. If it still works, this really is a first login — the
       // app will redirect into ForcePasswordChange automatically.
-      const ok = await login(derivedEmail, STUDENT_DEFAULT_PASSWORD);
-      if (ok) {
+      const result = await login(derivedEmail, STUDENT_DEFAULT_PASSWORD);
+      if (result === 'ok') {
         setPendingTempPassword(STUDENT_DEFAULT_PASSWORD);
-      } else {
+      } else if (result === 'error') {
         setNeedsStudentPassword(true);
       }
     } else {
@@ -94,8 +94,8 @@ export default function Login() {
         setLoading(false);
         return;
       }
-      const ok = await login(derivedEmail, studentPassword);
-      if (!ok) setError(lbl('Invalid Student ID or password.', 'Matricule ou mot de passe incorrect.'));
+      const result = await login(derivedEmail, studentPassword);
+      if (result === 'error') setError(lbl('Invalid Student ID or password.', 'Matricule ou mot de passe incorrect.'));
     }
     setLoading(false);
   };
@@ -199,7 +199,7 @@ export default function Login() {
           <div className="relative z-10 rounded-xl p-4 border border-white/10 backdrop-blur-sm flex items-center gap-3" style={{ background: 'rgba(255,255,255,0.07)' }}>
             <Shield size={18} className="text-indigo-300 shrink-0" />
             <p className="text-indigo-200 text-xs leading-relaxed">
-              {lbl('Your data is secured with JWT authentication and encrypted storage.', 'Vos données sont sécurisées par authentification JWT et stockage chiffré.')}
+              {lbl('Protected by short-lived sessions, two-factor authentication and account lockout.', 'Protégé par des sessions courtes, la double authentification et le verrouillage de compte.')}
             </p>
           </div>
         </div>
@@ -410,6 +410,9 @@ export default function Login() {
             {/* Footer */}
             <p className="text-center text-[11px] text-slate-400 mt-8">
               {schoolName} · {lbl('School Management System', 'Système de Gestion Scolaire')}
+            </p>
+            <p className="text-center text-[10px] text-slate-300 mt-1">
+              © {new Date().getFullYear()} [COMPANY LEGAL NAME]. {lbl('All rights reserved.', 'Tous droits réservés.')}
             </p>
           </div>
         </div>
