@@ -135,6 +135,11 @@ export default function TeacherScanAttendance() {
                 <p className="text-lg font-semibold text-slate-800 dark:text-slate-100">
                   {isLate ? lbl('Marked Late', 'Marqué en retard') : lbl('Marked On Time', 'Marqué à l’heure')}
                 </p>
+                {result.teacher && (
+                  <p className="text-sm text-slate-600 dark:text-slate-300">
+                    {result.teacher.first_name} {result.teacher.last_name} · {result.teacher.email}
+                  </p>
+                )}
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {result.scan_time ? new Date(result.scan_time).toLocaleTimeString(lang === 'fr' ? 'fr-FR' : 'en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
                   {' · '}{result.date}

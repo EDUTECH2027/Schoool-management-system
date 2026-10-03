@@ -625,6 +625,7 @@ export interface TeacherAttendanceRecord {
   id: string; teacher_id: string; date: string; status: string; remarks?: string;
   first_name: string; last_name: string;
   scan_time?: string | null; qr_code_id?: string | null; source?: 'manual' | 'qr_scan';
+  teacher?: { id: string; first_name: string; last_name: string; email: string };
 }
 export interface TeacherAttendanceSummary {
   month: string;
