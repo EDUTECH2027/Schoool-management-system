@@ -4,7 +4,9 @@
  * modification of this file, via any medium, is strictly prohibited.
  */
 import { useEffect, useState } from 'react';
+import { Suspense } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
+import LoadingScreen from '../ui/LoadingScreen';
 import Sidebar from './Sidebar';
 import Header from './Header';
 
@@ -30,7 +32,9 @@ export default function Layout() {
       <div className="flex-1 flex flex-col min-w-0">
         <Header onMenuToggle={() => setMobileMenuOpen((value) => !value)} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 dark:bg-slate-950">
-          <Outlet />
+          <Suspense fallback={<LoadingScreen variant="page" />}>
+            <Outlet />
+          </Suspense>
         </main>
       </div>
     </div>

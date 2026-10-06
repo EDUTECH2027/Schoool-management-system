@@ -3,27 +3,30 @@
  * Proprietary and confidential. Unauthorized copying, distribution or
  * modification of this file, via any medium, is strictly prohibited.
  */
+import { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout          from '../composants/layout/Layout';
-import Dashboard       from '../pages/Dashboard';
-import Students        from '../pages/Students';
-import Classes         from '../pages/Classes';
-import Teachers        from '../pages/Teachers';
-import Attendance      from '../pages/Attendance';
-import Assessments     from '../pages/Assessments';
-import ReportCards     from '../pages/ReportCards';
-import Fees            from '../pages/Fees';
-import Timetable       from '../pages/Timetable';
-import Parents         from '../pages/Parents';
-import Settings        from '../pages/Settings';
-import Announcements   from '../pages/Announcements';
-import EmailAlerts     from '../pages/EmailAlerts';
-import DiscussionForums from '../pages/DiscussionForums';
-import TeacherPayment  from '../pages/TeacherPayment';
-import Certificates    from '../pages/Certificates';
-import UserManagement  from '../pages/admin/UserManagement';
-import AdminWithdrawals from '../pages/admin/AdminWithdrawals';
-import ReportCardTemplateDesigner from '../pages/admin/ReportCardTemplateDesigner';
+
+// Each page is its own chunk: only the page being viewed is downloaded.
+const Dashboard = lazy(() => import('../pages/Dashboard'));
+const Students = lazy(() => import('../pages/Students'));
+const Classes = lazy(() => import('../pages/Classes'));
+const Teachers = lazy(() => import('../pages/Teachers'));
+const Attendance = lazy(() => import('../pages/Attendance'));
+const Assessments = lazy(() => import('../pages/Assessments'));
+const ReportCards = lazy(() => import('../pages/ReportCards'));
+const Fees = lazy(() => import('../pages/Fees'));
+const Timetable = lazy(() => import('../pages/Timetable'));
+const Parents = lazy(() => import('../pages/Parents'));
+const Settings = lazy(() => import('../pages/Settings'));
+const Announcements = lazy(() => import('../pages/Announcements'));
+const EmailAlerts = lazy(() => import('../pages/EmailAlerts'));
+const DiscussionForums = lazy(() => import('../pages/DiscussionForums'));
+const TeacherPayment = lazy(() => import('../pages/TeacherPayment'));
+const Certificates = lazy(() => import('../pages/Certificates'));
+const UserManagement = lazy(() => import('../pages/admin/UserManagement'));
+const AdminWithdrawals = lazy(() => import('../pages/admin/AdminWithdrawals'));
+const ReportCardTemplateDesigner = lazy(() => import('../pages/admin/ReportCardTemplateDesigner'));
 
 export default function AdminRoutes() {
   return (

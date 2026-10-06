@@ -8,8 +8,6 @@ import {
   Save, CheckCircle, X, Pencil, Plus, RotateCcw, Download,
   Settings2, ChevronDown, ChevronUp, Coffee, Loader2,
 } from 'lucide-react';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import type { Subject, Class, Teacher } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import { Calendar } from 'lucide-react';
@@ -669,7 +667,9 @@ export default function Timetable() {
   const termLabel = lbl('Current Timetable', 'Emploi du temps actuel');
 
   // ── PDF export ────────────────────────────────────────────────
-  const handleDownload = () => {
+  const handleDownload = async () => {
+    // Loaded on demand: jsPDF is large and only needed when exporting.
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
     doc.setFillColor(49, 46, 129);

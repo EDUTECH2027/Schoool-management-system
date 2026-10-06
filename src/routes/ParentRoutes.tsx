@@ -3,14 +3,17 @@
  * Proprietary and confidential. Unauthorized copying, distribution or
  * modification of this file, via any medium, is strictly prohibited.
  */
+import { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ParentLayout          from '../composants/layout/ParentLayout';
-import ParentDashboard       from '../pages/parent/ParentDashboard';
-import ParentProfile         from '../pages/parent/ParentProfile';
-import ParentChildren        from '../pages/parent/ParentChildren';
-import ParentChildMarks      from '../pages/parent/ParentChildMarks';
-import ParentChildAttendance from '../pages/parent/ParentChildAttendance';
-import ParentChildFees       from '../pages/parent/ParentChildFees';
+
+// Each page is its own chunk: only the page being viewed is downloaded.
+const ParentDashboard = lazy(() => import('../pages/parent/ParentDashboard'));
+const ParentProfile = lazy(() => import('../pages/parent/ParentProfile'));
+const ParentChildren = lazy(() => import('../pages/parent/ParentChildren'));
+const ParentChildMarks = lazy(() => import('../pages/parent/ParentChildMarks'));
+const ParentChildAttendance = lazy(() => import('../pages/parent/ParentChildAttendance'));
+const ParentChildFees = lazy(() => import('../pages/parent/ParentChildFees'));
 
 export default function ParentRoutes() {
   return (

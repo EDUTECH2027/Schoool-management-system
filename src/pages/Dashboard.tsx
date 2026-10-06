@@ -14,6 +14,7 @@ import { api } from '../api/client';
 import type { DashboardData, AttendanceRecord } from '../api/client';
 import { mapStudent } from '../api/mappers';
 import type { Student } from '../types';
+import LoadingScreen from '../composants/ui/LoadingScreen';
 
 export default function Dashboard() {
   const { t, lang } = useLanguage();
@@ -24,24 +25,55 @@ export default function Dashboard() {
 
   const [stats,         setStats]         = useState<DashboardData | null>(null);
   const [todayAtt,      setTodayAtt]      = useState<AttendanceRecord[]>([]);
-  const [students,      setStudents]      = useState<Student[]>([]);
   const [loading,       setLoading]       = useState(true);
-  const [studentSearch, setStudentSearch] = useState('');
+
+  // Student directory: paged on the server, so every student is reachable and only 10 are fetched at a time.
+  const PAGE_SIZE = 10;
+  const [students,        setStudents]        = useState<Student[]>([]);
+  const [studentTotal,    setStudentTotal]    = useState(0);
+  const [studentPage,     setStudentPage]     = useState(1);
+  const [studentSearch,   setStudentSearch]   = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [tableLoading,    setTableLoading]    = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.dashboard(),
       api.getAttendance({ date: today }),
-      api.getStudents(),
     ])
-      .then(([dash, att, sts]) => {
+      .then(([dash, att]) => {
         setStats(dash);
         setTodayAtt(att);
-        setStudents(sts.map(mapStudent));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [today]);
+
+  // Wait for a pause in typing before searching, and go back to page 1 for a new search.
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setDebouncedSearch(studentSearch.trim());
+      setStudentPage(1);
+    }, 300);
+    return () => window.clearTimeout(id);
+  }, [studentSearch]);
+
+  useEffect(() => {
+    let stale = false; // ignore a slow earlier response that arrives after a newer one
+    setTableLoading(true);
+    api.getStudentsPage({
+      isActive: 'true', page: String(studentPage), limit: String(PAGE_SIZE),
+      ...(debouncedSearch ? { search: debouncedSearch } : {}),
+    })
+      .then(res => {
+        if (stale) return;
+        setStudents(res.data.map(mapStudent));
+        setStudentTotal(res.total);
+      })
+      .catch(console.error)
+      .finally(() => { if (!stale) setTableLoading(false); });
+    return () => { stale = true; };
+  }, [studentPage, debouncedSearch]);
 
   const feePercent = stats && stats.feesTotal > 0
     ? Math.round((stats.feesCollected / stats.feesTotal) * 100) : 0;
@@ -53,17 +85,15 @@ export default function Dashboard() {
     excused: todayAtt.filter(a => a.status === 'excused').length,
   };
 
-  const activeStudents = students.filter(s => s.isActive);
-  const filteredStudents = studentSearch.trim()
-    ? activeStudents.filter(s => {
-        const q = studentSearch.toLowerCase();
-        return (
-          `${s.firstName} ${s.lastName}`.toLowerCase().includes(q) ||
-          s.studentNumber.toLowerCase().includes(q) ||
-          s.className.toLowerCase().includes(q)
-        );
-      })
-    : activeStudents;
+  const totalPages = Math.max(1, Math.ceil(studentTotal / PAGE_SIZE));
+  const firstShown = studentTotal === 0 ? 0 : (studentPage - 1) * PAGE_SIZE + 1;
+  const lastShown = Math.min(studentPage * PAGE_SIZE, studentTotal);
+  // Windowed page numbers: 1 … 4 5 [6] 7 8 … 20
+  const pageNumbers: (number | '…')[] = [];
+  for (let p = 1; p <= totalPages; p++) {
+    if (p === 1 || p === totalPages || Math.abs(p - studentPage) <= 1) pageNumbers.push(p);
+    else if (pageNumbers[pageNumbers.length - 1] !== '…') pageNumbers.push('…');
+  }
 
   const statusLabels: Record<string, string> = {
     present: t.common.present,
@@ -72,13 +102,7 @@ export default function Dashboard() {
     excused: t.common.excused,
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen variant="page" />;
 
   return (
     <div className="space-y-6">
@@ -263,7 +287,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2.5">
             <h3 className="font-semibold text-slate-800">{t.dashboard.studentDirectory}</h3>
             <span className="bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-              {filteredStudents.length}
+              {studentTotal}
             </span>
           </div>
           <div className="relative w-full sm:w-52">
@@ -288,10 +312,10 @@ export default function Dashboard() {
                 <th className="px-5 py-3 text-left font-medium">{t.common.status}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredStudents.map((s, i) => (
+            <tbody className={`divide-y divide-slate-100 transition-opacity ${tableLoading ? 'opacity-50' : ''}`}>
+              {students.map((s, i) => (
                 <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3 text-slate-400 text-xs">{i + 1}</td>
+                  <td className="px-5 py-3 text-slate-400 text-xs">{(studentPage - 1) * PAGE_SIZE + i + 1}</td>
                   <td className="px-5 py-3">
                     <p className="font-medium text-slate-800">{s.firstName} {s.lastName}</p>
                     <p className="text-xs text-slate-400 font-mono">{s.studentNumber}</p>
@@ -307,7 +331,7 @@ export default function Dashboard() {
                   </td>
                 </tr>
               ))}
-              {filteredStudents.length === 0 && (
+              {!tableLoading && students.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-5 py-10 text-center text-slate-400 text-sm">
                     {t.common.noResults}
@@ -317,6 +341,45 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+
+        {studentTotal > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 border-t border-slate-100 text-xs text-slate-500">
+            <span>
+              {lang === 'fr'
+                ? `Affichage de ${firstShown} à ${lastShown} sur ${studentTotal}`
+                : `Showing ${firstShown}–${lastShown} of ${studentTotal}`}
+            </span>
+            <nav className="flex items-center gap-1" aria-label="Pagination">
+              <button
+                onClick={() => setStudentPage(p => Math.max(1, p - 1))}
+                disabled={studentPage === 1 || tableLoading}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {lang === 'fr' ? 'Précédent' : 'Previous'}
+              </button>
+              {pageNumbers.map((p, idx) => p === '…' ? (
+                <span key={`gap-${idx}`} className="px-1.5">…</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => setStudentPage(p)}
+                  disabled={tableLoading}
+                  aria-current={p === studentPage ? 'page' : undefined}
+                  className={`min-w-8 px-2 py-1 rounded-lg border ${p === studentPage ? 'bg-indigo-600 border-indigo-600 text-white font-semibold' : 'border-slate-200 hover:bg-slate-50'}`}
+                >
+                  {p}
+                </button>
+              ))}
+              <button
+                onClick={() => setStudentPage(p => Math.min(totalPages, p + 1))}
+                disabled={studentPage === totalPages || tableLoading}
+                className="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {lang === 'fr' ? 'Suivant' : 'Next'}
+              </button>
+            </nav>
+          </div>
+        )}
       </div>
     </div>
   );

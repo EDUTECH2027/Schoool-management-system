@@ -3,18 +3,21 @@
  * Proprietary and confidential. Unauthorized copying, distribution or
  * modification of this file, via any medium, is strictly prohibited.
  */
+import { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import TeacherLayout      from '../composants/layout/TeacherLayout';
-import TeacherDashboard   from '../pages/teacher/TeacherDashboard';
-import TeacherProfile     from '../pages/teacher/TeacherProfile';
-import TeacherMyClass     from '../pages/teacher/TeacherMyClass';
-import TeacherMarks       from '../pages/teacher/TeacherMarks';
-import TeacherAttendance  from '../pages/teacher/TeacherAttendance';
-import TeacherMyAttendance from '../pages/teacher/TeacherMyAttendance';
-import TeacherScanAttendance from '../pages/teacher/TeacherScanAttendance';
-import TeacherTimetable   from '../pages/teacher/TeacherTimetable';
-import TeacherBehavior    from '../pages/teacher/TeacherBehavior';
-import TeacherSalary      from '../pages/teacher/TeacherSalary';
+
+// Each page is its own chunk: only the page being viewed is downloaded.
+const TeacherDashboard = lazy(() => import('../pages/teacher/TeacherDashboard'));
+const TeacherProfile = lazy(() => import('../pages/teacher/TeacherProfile'));
+const TeacherMyClass = lazy(() => import('../pages/teacher/TeacherMyClass'));
+const TeacherMarks = lazy(() => import('../pages/teacher/TeacherMarks'));
+const TeacherAttendance = lazy(() => import('../pages/teacher/TeacherAttendance'));
+const TeacherMyAttendance = lazy(() => import('../pages/teacher/TeacherMyAttendance'));
+const TeacherScanAttendance = lazy(() => import('../pages/teacher/TeacherScanAttendance'));
+const TeacherTimetable = lazy(() => import('../pages/teacher/TeacherTimetable'));
+const TeacherBehavior = lazy(() => import('../pages/teacher/TeacherBehavior'));
+const TeacherSalary = lazy(() => import('../pages/teacher/TeacherSalary'));
 
 export default function TeacherRoutes() {
   return (

@@ -3,21 +3,24 @@
  * Proprietary and confidential. Unauthorized copying, distribution or
  * modification of this file, via any medium, is strictly prohibited.
  */
+import { lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import PlatformLayout        from '../composants/layout/PlatformLayout';
-import PlatformDashboard     from '../pages/platform/PlatformDashboard';
-import Schools               from '../pages/platform/Schools';
-import SchoolDetail          from '../pages/platform/SchoolDetail';
-import PlatformUsers         from '../pages/platform/PlatformUsers';
-import Subscriptions         from '../pages/platform/Subscriptions';
-import Reports               from '../pages/platform/Reports';
-import SystemLogs            from '../pages/platform/SystemLogs';
-import PlansBilling          from '../pages/platform/PlansBilling';
-import Features              from '../pages/platform/Features';
-import PlatformAnnouncements from '../pages/platform/PlatformAnnouncements';
-import RolesPermissions      from '../pages/platform/RolesPermissions';
-import PlatformSettings      from '../pages/platform/PlatformSettings';
-import BackupRestore         from '../pages/platform/BackupRestore';
+
+// Each page is its own chunk: only the page being viewed is downloaded.
+const PlatformDashboard = lazy(() => import('../pages/platform/PlatformDashboard'));
+const Schools = lazy(() => import('../pages/platform/Schools'));
+const SchoolDetail = lazy(() => import('../pages/platform/SchoolDetail'));
+const PlatformUsers = lazy(() => import('../pages/platform/PlatformUsers'));
+const Subscriptions = lazy(() => import('../pages/platform/Subscriptions'));
+const Reports = lazy(() => import('../pages/platform/Reports'));
+const SystemLogs = lazy(() => import('../pages/platform/SystemLogs'));
+const PlansBilling = lazy(() => import('../pages/platform/PlansBilling'));
+const Features = lazy(() => import('../pages/platform/Features'));
+const PlatformAnnouncements = lazy(() => import('../pages/platform/PlatformAnnouncements'));
+const RolesPermissions = lazy(() => import('../pages/platform/RolesPermissions'));
+const PlatformSettings = lazy(() => import('../pages/platform/PlatformSettings'));
+const BackupRestore = lazy(() => import('../pages/platform/BackupRestore'));
 
 export default function PlatformRoutes() {
   return (

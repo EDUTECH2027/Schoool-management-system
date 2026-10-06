@@ -5,8 +5,6 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { Printer, Eye, Award, X, RefreshCw, BookOpen, Download } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { useBranding } from '../context/BrandingContext';
 import { api, mediaUrl, type ClassRecord, type Student, type AnnualSummary, type ReportCardTemplate } from '../api/client';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -328,6 +326,8 @@ export default function ReportCards() {
       }
     }
 
+    // Loaded on demand: jsPDF is large and only needed when exporting.
+    const [{ jsPDF }, { default: autoTable }] = await Promise.all([import('jspdf'), import('jspdf-autotable')]);
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     const X = 14;
     const W = 182;

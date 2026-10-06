@@ -9,8 +9,10 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import Login from './pages/Login';
 import ForcePasswordChange from './pages/ForcePasswordChange';
+import ActivateAccount from './pages/ActivateAccount';
 import TwoFactorChallenge from './pages/TwoFactorChallenge';
 import TwoFactorEnrollment from './pages/TwoFactorEnrollment';
+import LoadingScreen from './composants/ui/LoadingScreen';
 import LicenseBanner from './composants/LicenseBanner';
 
 // Each role only ever needs its own route tree — lazy-loading these means a
@@ -23,16 +25,14 @@ const ParentRoutes   = lazy(() => import('./routes/ParentRoutes'));
 const PlatformRoutes = lazy(() => import('./routes/PlatformRoutes'));
 
 function RouteLoadingFallback() {
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-    </div>
-  );
+  return <LoadingScreen variant="screen" />;
 }
 
 function AppRoutes() {
   const { user, mfaToken, enrollToken } = useAuth();
 
+  const activateToken = new URLSearchParams(window.location.search).get('activate');
+  if (activateToken && !user) return <ActivateAccount token={activateToken} />;
   if (mfaToken) return <TwoFactorChallenge />;
   if (enrollToken) return <TwoFactorEnrollment />;
   if (!user) return <Login />;

@@ -7,7 +7,41 @@
     <title>School App</title>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Shown until React mounts (replaced automatically). -->
+      <div id="boot" role="status" aria-live="polite">
+        <div class="boot-spin"></div>
+        <p id="boot-msg">Loading your workspace…</p>
+      </div>
+    </div>
+    <style>
+      #boot{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:0 24px;text-align:center;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#f8fafc;color:#64748b}
+      #boot p{margin:0;max-width:360px;font-size:14px;line-height:1.5}
+      .boot-spin{width:36px;height:36px;border:4px solid #4f46e5;border-top-color:transparent;border-radius:50%;animation:boot-r .8s linear infinite}
+      @keyframes boot-r{to{transform:rotate(360deg)}}
+      @media (prefers-color-scheme:dark){#boot{background:#020617;color:#94a3b8}}
+    </style>
+    <script>
+      (function () {
+        var fr = false; try { fr = localStorage.getItem('lang') === 'fr'; } catch (e) {}
+        var steps = fr ? [
+          [0, 'Chargement de votre espace…'], [4, 'Préparation de l'application…'],
+          [8, 'Toujours en cours — connexion au serveur…'],
+          [15, 'Cela prend plus de temps que d'habitude. Veuillez garder cette page ouverte.'],
+          [25, 'Presque terminé… si rien n'apparaît, vérifiez votre connexion internet et actualisez la page.']
+        ] : [
+          [0, 'Loading your workspace…'], [4, 'Preparing the application…'],
+          [8, 'Still working — connecting to the server…'],
+          [15, 'This is taking longer than usual. Please keep this page open.'],
+          [25, 'Almost there… if nothing appears, check your internet connection and refresh the page.']
+        ];
+        var t = 0, timer = setInterval(function () {
+          var el = document.getElementById('boot-msg');
+          if (!el) { clearInterval(timer); return; }
+          t++; for (var i = steps.length - 1; i >= 0; i--) { if (t >= steps[i][0]) { el.textContent = steps[i][1]; break; } }
+        }, 1000);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

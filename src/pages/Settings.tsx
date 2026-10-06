@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { Upload, X, CalendarDays, AlertTriangle, CheckCircle2, BookOpen, Trash2, Plus, Pencil, Check, Download, Database, FileUp, DollarSign, Lock, FileText, Wand2 } from 'lucide-react';
 import type { Subject } from '../types';
 import { api, type ClassRecord, type Teacher as TeacherRaw, type AcademicYear, type Term, type MarksSettings } from '../api/client';
+import { parseStudentRows, readXlsxRows, isZipFile, FIELD_LABELS } from '../utils/studentImport';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useBranding } from '../context/BrandingContext';
 import TwoFactorCard from '../composants/TwoFactorCard';
@@ -54,6 +55,11 @@ function downloadFile(filename: string, content: string, mime = 'text/csv') {
 // RFC4180-ish CSV parser: handles quoted fields, embedded commas/newlines, "" escapes.
 function parseCSV(text: string): string[][] {
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1); // strip BOM
+  // Detect delimiter from the first line (Excel in many locales saves with ; or tab).
+  const firstLine = text.split('\n')[0] ?? '';
+  const count = (ch: string) => firstLine.split(ch).length - 1;
+  const delim = count(';') > count(',') && count(';') >= count('\t') ? ';'
+    : count('\t') > count(',') ? '\t' : ',';
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';
@@ -65,7 +71,7 @@ function parseCSV(text: string): string[][] {
         if (text[i + 1] === '"') { field += '"'; i++; } else inQuotes = false;
       } else field += c;
     } else if (c === '"') inQuotes = true;
-    else if (c === ',') { row.push(field); field = ''; }
+    else if (c === delim) { row.push(field); field = ''; }
     else if (c === '\r') { /* skip — \n (or EOF) closes the row */ }
     else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ''; }
     else field += c;
@@ -74,34 +80,21 @@ function parseCSV(text: string): string[][] {
   return rows.filter(r => r.some(c => c.trim() !== ''));
 }
 
-// Maps a spreadsheet column header to the CreateStudentInput field it feeds,
-// accepting common English/French synonyms so exports from other systems still work.
-const STUDENT_HEADER_ALIASES: Record<string, string[]> = {
-  studentNumber:  ['studentnumber', 'studentno', 'studentid', 'matricule', 'id'],
-  firstName:      ['firstname', 'prenom'],
-  lastName:       ['lastname', 'nom', 'surname'],
-  dateOfBirth:    ['dateofbirth', 'dob', 'birthdate', 'datedenaissance'],
-  gender:         ['gender', 'sexe', 'sex'],
-  className:      ['class', 'classe'],
-  gradeLevelName: ['gradelevel', 'grade', 'niveau'],
-  guardianName:   ['guardianname', 'guardian', 'parent', 'nomduparent'],
-  guardianPhone:  ['guardianphone', 'parentphone', 'telephoneparent', 'phone'],
-  admissionDate:  ['admissiondate', 'dateadmission', 'dateinscription'],
-  isActive:       ['active', 'actif', 'status'],
-};
-function stripDiacritics(s: string): string {
-  return s.normalize('NFD').split('').filter(ch => {
-    const code = ch.charCodeAt(0);
-    return !(code >= 0x0300 && code <= 0x036f);
-  }).join('');
-}
-const normalizeHeader = (h: string) => stripDiacritics(h.toLowerCase()).replace(/[^a-z0-9]/g, '');
-function matchStudentHeader(h: string): string | null {
-  const norm = normalizeHeader(h);
-  for (const [key, aliases] of Object.entries(STUDENT_HEADER_ALIASES)) {
-    if (normalizeHeader(key) === norm || aliases.some(a => normalizeHeader(a) === norm)) return key;
-  }
-  return null;
+// Decodes an uploaded file as text. Rejects binary files (Excel .xlsx/.xls, Word, PDF…) that would
+// otherwise be read as garbage; falls back to Windows-1252 for CSVs saved by older Excel.
+function decodeCSVBuffer(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  // UTF-16 text (Excel's "Unicode Text" / some CSV exports) contains NUL bytes by design.
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes);
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes);
+  const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b;                   // zip container: not text
+  const isOle = bytes[0] === 0xd0 && bytes[1] === 0xcf;                   // .xls / .doc
+  const isPdf = bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44;
+  if (isZip || isOle || isPdf || bytes.subarray(0, 4096).includes(0)) throw new Error('binary file');
+  let text: string;
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+  catch { text = new TextDecoder('windows-1252').decode(bytes); }
+  return text;
 }
 
 // datetime-local inputs need "YYYY-MM-DDTHH:mm" in local time; ISO strings from the API are UTC.
@@ -581,54 +574,94 @@ export default function Settings() {
   const handleImportStudentsCSV = (file: File) => {
     setStudentImportStatus('idle');
     setStudentImportBusy(true);
+    const fail = (en: string, fr: string) => {
+      setStudentImportStatus('error');
+      setStudentImportMsg(lbl(en, fr));
+      setStudentImportBusy(false);
+    };
     const reader = new FileReader();
+    reader.onerror = () => fail('The file could not be read.', "Le fichier n'a pas pu être lu.");
     reader.onload = async e => {
+      let parsed: ReturnType<typeof parseStudentRows>;
       try {
-        const text = e.target?.result as string;
-        const rows = parseCSV(text);
-        if (rows.length < 2) throw new Error('empty');
-
-        const keys = rows[0].map(matchStudentHeader);
-        if (!keys.includes('firstName') || !keys.includes('lastName')) {
-          throw new Error('missing required columns');
-        }
-
-        const students = rows.slice(1).map(r => {
-          const obj: Record<string, string> = {};
-          keys.forEach((key, idx) => {
-            if (!key) return;
-            const val = (r[idx] ?? '').trim();
-            if (val === '') return;
-            obj[key] = val;
-          });
-          return obj;
-        }).filter(o => o.firstName || o.lastName);
-
-        if (students.length === 0) throw new Error('no rows');
-
-        const result = await api.importStudents(students);
-        if (result.errors.length > 0) {
-          setStudentImportStatus(result.created > 0 ? 'success' : 'error');
-          const details = result.errors.slice(0, 5).map(er => lbl(`row ${er.row}: ${er.reason}`, `ligne ${er.row} : ${er.reason}`)).join('; ');
-          setStudentImportMsg(lbl(
-            `Imported ${result.created} student(s). ${result.errors.length} row(s) skipped — ${details}${result.errors.length > 5 ? '…' : ''}`,
-            `${result.created} élève(s) importé(s). ${result.errors.length} ligne(s) ignorée(s) — ${details}${result.errors.length > 5 ? '…' : ''}`
-          ));
-        } else {
-          setStudentImportStatus('success');
-          setStudentImportMsg(lbl(`Imported ${result.created} student(s) successfully.`, `${result.created} élève(s) importé(s) avec succès.`));
-        }
+        const buf = e.target?.result as ArrayBuffer;
+        const rows = isZipFile(buf) ? await readXlsxRows(buf) : parseCSV(decodeCSVBuffer(buf));
+        parsed = parseStudentRows(rows, classList.map(c => c.name));
       } catch (err) {
+        console.error(err);
+        return fail(
+          'This file could not be read. Use an Excel .xlsx file or a .csv. Old .xls files must be re-saved as .xlsx or CSV (File → Save As).',
+          "Ce fichier n'a pas pu être lu. Utilisez un fichier Excel .xlsx ou un .csv. Les anciens .xls doivent être réenregistrés en .xlsx ou CSV (Fichier → Enregistrer sous).",
+        );
+      }
+
+      if (parsed.students.length === 0) {
+        return fail(
+          "No student names were found. Make sure the file has a column with the students' names (a header such as Name, Full Name, Nom, Prénom is ideal).",
+          "Aucun nom d'élève trouvé. Le fichier doit contenir une colonne de noms (idéalement avec un en-tête : Nom, Prénom, Name…).",
+        );
+      }
+
+      const detected = parsed.mapping.filter(m => m.field)
+        .map(m => `${m.column || '?'} → ${lbl(...FIELD_LABELS[m.field!])}`).join(', ');
+      const ignored = parsed.mapping.filter(m => !m.field && m.column.trim()).map(m => m.column);
+      const extra = [
+        parsed.skipped ? lbl(`${parsed.skipped} row(s) without a name were ignored.`, `${parsed.skipped} ligne(s) sans nom ignorée(s).`) : '',
+        ...parsed.warnings,
+        ignored.length ? lbl(`Not imported (unrecognised): ${ignored.join(', ')}.`, `Non importé (non reconnu) : ${ignored.join(', ')}.`) : '',
+      ].filter(Boolean).join(' ');
+
+      try {
+        const result = await api.importStudents(parsed.students);
+        const head = lbl(`Imported ${result.created} of ${parsed.students.length} student(s).`, `${result.created} élève(s) sur ${parsed.students.length} importé(s).`);
+        const cls = result.classes;
+        const classMsg = cls
+          ? [
+              cls.created.length ? lbl(` New classes created: ${cls.created.join(', ')}.`, ` Nouvelles classes créées : ${cls.created.join(', ')}.`) : '',
+              cls.unassigned ? lbl(` ${cls.unassigned} student(s) have no class (no class value in the file).`, ` ${cls.unassigned} élève(s) sans classe (aucune valeur de classe dans le fichier).`) : '',
+            ].join('')
+          : '';
+        const mapped = lbl(`Columns detected: ${detected}.`, `Colonnes détectées : ${detected}.`);
+        const details = result.errors.slice(0, 5).map(er => lbl(`row ${er.row}: ${er.reason}`, `ligne ${er.row} : ${er.reason}`)).join('; ');
+        const more = result.errors.length > 5 ? '…' : '';
+        const skippedMsg = result.errors.length
+          ? lbl(` ${result.errors.length} row(s) skipped — ${details}${more}.`, ` ${result.errors.length} ligne(s) ignorée(s) — ${details}${more}.`)
+          : '';
+        setStudentImportStatus(result.created > 0 ? 'success' : 'error');
+        setStudentImportMsg(`${head}${classMsg}${skippedMsg} ${mapped} ${extra}`.trim());
+      } catch (err) {
+        console.error(err);
+        const reason = err instanceof Error ? err.message : '';
         setStudentImportStatus('error');
         setStudentImportMsg(lbl(
-          'Invalid file. Use a .csv with at least First Name and Last Name columns.',
-          'Fichier invalide. Utilisez un .csv avec au moins les colonnes Prénom et Nom.'
+          `The file was read (${parsed.students.length} students found) but the server rejected the import: ${reason || 'unknown error'}`,
+          `Le fichier a été lu (${parsed.students.length} élèves trouvés) mais le serveur a refusé l'import : ${reason || 'erreur inconnue'}`,
         ));
-        console.error(err);
       }
       setStudentImportBusy(false);
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
+  };
+
+  // Repairs students that carry a class name but aren't linked to a class record.
+  const syncClassesFromStudents = async () => {
+    setStudentImportStatus('idle');
+    setStudentImportBusy(true);
+    try {
+      const r = await api.syncClassesFromStudents();
+      setStudentImportStatus('success');
+      setStudentImportMsg(r.linked === 0
+        ? lbl('Every student with a class name is already linked to a class.', 'Tous les élèves ayant un nom de classe sont déjà liés à une classe.')
+        : lbl(
+            `Linked ${r.linked} student(s) to their classes.${r.createdClasses.length ? ` New classes created: ${r.createdClasses.join(', ')}.` : ''}`,
+            `${r.linked} élève(s) lié(s) à leur classe.${r.createdClasses.length ? ` Nouvelles classes créées : ${r.createdClasses.join(', ')}.` : ''}`,
+          ));
+      api.getClasses().then(setClassList).catch(console.error);
+    } catch (err) {
+      setStudentImportStatus('error');
+      setStudentImportMsg(err instanceof Error ? err.message : lbl('Could not sync classes.', 'Synchronisation impossible.'));
+    }
+    setStudentImportBusy(false);
   };
 
   const downloadStudentTemplate = () => downloadFile('students-template.csv', toCSV(
@@ -1399,7 +1432,7 @@ export default function Settings() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              {lbl('Import Students (CSV)', 'Importer des élèves (CSV)')}
+              {lbl('Import Students (Excel / CSV)', 'Importer des élèves (Excel / CSV)')}
             </p>
             <button
               onClick={downloadStudentTemplate}
@@ -1428,17 +1461,26 @@ export default function Settings() {
             <p className="text-sm font-medium text-slate-600">
               {studentImportBusy
                 ? lbl('Importing…', 'Importation…')
-                : lbl('Drop a .csv of students here, or click to browse', 'Déposez un .csv d\'élèves ici, ou cliquez pour parcourir')}
+                : lbl('Drop an Excel (.xlsx) or .csv file of students here, or click to browse', 'Déposez un fichier Excel (.xlsx) ou .csv d\'élèves ici, ou cliquez pour parcourir')}
             </p>
             <p className="text-xs text-slate-400">
               {lbl('Columns: Student Number, First/Last Name, DOB, Gender, Class, Grade Level, Guardian Name/Phone, Admission Date, Active', 'Colonnes : Matricule, Prénom/Nom, Date de naissance, Sexe, Classe, Niveau, Nom/Téléphone du parent, Date d\'inscription, Actif')}
             </p>
           </div>
 
+          <button
+            type="button"
+            disabled={studentImportBusy}
+            onClick={syncClassesFromStudents}
+            className="mt-3 text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50"
+          >
+            {lbl('Students not in their class? Link them to their classes', 'Élèves sans classe ? Les rattacher à leurs classes')}
+          </button>
+
           <input
             ref={studentImportRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             className="hidden"
             onChange={e => {
               const f = e.target.files?.[0];

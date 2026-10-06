@@ -9,7 +9,8 @@ import { School, GraduationCap, Users2, UserRound, Wallet, Plus } from 'lucide-r
 import StatCard from '../../composants/ui/StatCard';
 import Badge from '../../composants/ui/Badge';
 import { api } from '../../api/client';
-import type { PlatformDashboardData, PlatformSchool, SubscriptionPlan, CreateSchoolInput } from '../../api/client';
+import type { PlatformDashboardData, PlatformSchool, SubscriptionPlan, CreateSchoolInput, CreateSchoolResult } from '../../api/client';
+import LoadingScreen from '../../composants/ui/LoadingScreen';
 
 const DONUT_COLORS = ['#4f46e5', '#0ea5e9', '#f59e0b', '#10b981', '#a855f7'];
 
@@ -91,8 +92,8 @@ export default function PlatformDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<CreateSchoolInput>({ name: '', email: '', phone: '', plan_id: '', admin_name: '', admin_email: '' });
-  const [createResult, setCreateResult] = useState<{ email: string; tempPassword: string } | null>(null);
+  const [form, setForm] = useState<CreateSchoolInput>({ name: '', email: '', phone: '', plan_id: '', admin_name: '', admin_email: '', admin_phone: '' });
+  const [createResult, setCreateResult] = useState<CreateSchoolResult | null>(null);
   const [error, setError] = useState('');
 
   const load = () => {
@@ -114,8 +115,8 @@ export default function PlatformDashboard() {
     setCreating(true);
     try {
       const res = await api.platform.createSchool(form);
-      setCreateResult(res.admin);
-      setForm({ name: '', email: '', phone: '', plan_id: '', admin_name: '', admin_email: '' });
+      setCreateResult(res);
+      setForm({ name: '', email: '', phone: '', plan_id: '', admin_name: '', admin_email: '', admin_phone: '' });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create school');
@@ -130,13 +131,7 @@ export default function PlatformDashboard() {
     load();
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <LoadingScreen variant="page" />;
 
   return (
     <div className="space-y-6">
@@ -221,9 +216,18 @@ export default function PlatformDashboard() {
             <form onSubmit={submitCreate} className="bg-white dark:bg-slate-900 p-5 space-y-3">
               {error && <p className="text-red-600 text-xs">{error}</p>}
               {createResult && (
-                <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 text-xs text-green-800 dark:text-green-300">
-                  School created. Admin login: <strong>{createResult.email}</strong> / <strong>{createResult.tempPassword}</strong>
-                </div>
+                createResult.whatsapp.sent ? (
+                  <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 text-xs text-green-800 dark:text-green-300">
+                    School created. An account activation link was sent to the administrator on WhatsApp.
+                  </div>
+                ) : (
+                  <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
+                    <p>School created, but the WhatsApp message was <strong>not sent</strong>: {createResult.whatsapp.error}</p>
+                    {createResult.admin.activationLink && (
+                      <p className="break-all">Send the administrator ({createResult.admin.email}) this one-time activation link, valid 7 days: <strong>{createResult.admin.activationLink}</strong></p>
+                    )}
+                  </div>
+                )
               )}
               <div>
                 <label className="text-xs font-medium text-slate-600 dark:text-slate-300">School Name *</label>
@@ -257,6 +261,12 @@ export default function PlatformDashboard() {
                 <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Admin Email *</label>
                 <input required type="email" value={form.admin_email} onChange={e => setForm({ ...form, admin_email: e.target.value })}
                   className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Admin WhatsApp Number *</label>
+                <input required type="tel" placeholder="+237 6XX XX XX XX" value={form.admin_phone ?? ''} onChange={e => setForm({ ...form, admin_phone: e.target.value })}
+                  className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                <p className="text-[11px] text-slate-400 mt-1">A secure account-activation link is sent here via WhatsApp.</p>
               </div>
               <button disabled={creating} type="submit"
                 className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium text-sm py-2.5 rounded-lg transition-colors">

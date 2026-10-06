@@ -4,10 +4,7 @@
  * modification of this file, via any medium, is strictly prohibited.
  */
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
-import * as pdfjsLib from 'pdfjs-dist';
-import pdfjsWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
 
 export type SimpleFieldKey =
   | 'school_name' | 'school_motto' | 'school_address' | 'head_teacher'
@@ -167,6 +164,12 @@ export interface RenderedPage {
 }
 
 export async function renderPdfFirstPage(bytes: ArrayBuffer, targetWidthPx: number): Promise<RenderedPage> {
+  // pdf.js (+ its 1 MB worker) is only fetched when a template is actually previewed.
+  const [pdfjsLib, { default: pdfjsWorkerUrl }] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ]);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
   const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
   const page = await pdf.getPage(1);
   const unscaled = page.getViewport({ scale: 1 });

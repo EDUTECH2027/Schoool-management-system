@@ -180,6 +180,9 @@ export const api = {
   changePassword: (currentPassword: string, newPassword: string) =>
     request<{ message: string } & SessionPayload>('PUT', '/auth/me/password', { currentPassword, newPassword }),
 
+  activateAccount: (token: string, newPassword: string) =>
+    request<{ message: string; email: string }>('POST', '/auth/activate', { token, newPassword }),
+
   // ── Two-factor (TOTP) ────────────────────────────────────────────
   twoFactor: {
     status:        (token?: string) => request<TwoFactorStatus>('GET', '/auth/2fa/status', undefined, token),
@@ -255,6 +258,8 @@ export const api = {
   // ── Students ─────────────────────────────────────────────────────
   getStudents:   (params?: Record<string, string>) =>
     request<Student[]>('GET', `/students${toQS(params)}`),
+  getStudentsPage: (params?: Record<string, string>) =>
+    request<{ data: Student[]; total: number; page: number; limit: number }>('GET', `/students${toQS({ ...params, paged: 'true' })}`),
   getStudent:    (id: string) => request<Student>('GET', `/students/${id}`),
   createStudent: (data: CreateStudentInput) => {
     const { photoFile, documents, siblingIds, ...rest } = data;
@@ -270,8 +275,10 @@ export const api = {
   },
   updateStudent: (id: string, data: Partial<Omit<Student, 'documents'>>) => request<Student>('PUT', `/students/${id}`, data),
   deleteStudent: (id: string) => request<void>('DELETE', `/students/${id}`),
+  syncClassesFromStudents: () =>
+    request<{ linked: number; createdClasses: string[]; unmatched: string[] }>('POST', '/classes/sync-from-students', {}),
   importStudents: (students: Record<string, string>[]) =>
-    request<{ created: number; errors: { row: number; reason: string }[] }>('POST', '/students/import', { students }),
+    request<{ created: number; errors: { row: number; reason: string }[]; classes?: { created: string[]; unmatched: string[]; unassigned: number } }>('POST', '/students/import', { students }),
 
   // ── Parents ──────────────────────────────────────────────────────
   getParents:   (params?: Record<string, string>) =>
@@ -493,7 +500,9 @@ export const api = {
     getSchool:       (id: string) => request<PlatformSchool>('GET', `/platform/schools/${id}`),
     getSchoolSummary:(id: string) => request<SchoolSummary>('GET', `/platform/schools/${id}/summary`),
     createSchool:    (data: CreateSchoolInput) =>
-      request<{ school: PlatformSchool; admin: { email: string; tempPassword: string } }>('POST', '/platform/schools', data),
+      request<CreateSchoolResult>('POST', '/platform/schools', data),
+    resendCredentials: (id: string, admin_phone: string) =>
+      request<Omit<CreateSchoolResult, 'school'>>('POST', `/platform/schools/${id}/resend-credentials`, { admin_phone }),
     updateSchool:    (id: string, data: Partial<PlatformSchool>) => request<PlatformSchool>('PUT', `/platform/schools/${id}`, data),
     activateSchool:  (id: string) => request<PlatformSchool>('PATCH', `/platform/schools/${id}/activate`),
     deactivateSchool:(id: string) => request<PlatformSchool>('PATCH', `/platform/schools/${id}/deactivate`),
@@ -684,7 +693,16 @@ export interface PlatformSchool {
 }
 export interface CreateSchoolInput {
   name: string; email: string; phone?: string; address?: string; plan_id: string;
-  admin_name: string; admin_email: string;
+  admin_name: string; admin_email: string; admin_phone?: string;
+}
+export interface WhatsAppStatus {
+  sent: boolean; message_id?: string; status?: string; error?: string; code?: string | number; retryable?: boolean;
+}
+export interface CreateSchoolResult {
+  school: PlatformSchool;
+  // activationLink is present only when WhatsApp delivery failed
+  admin: { email: string; activationLink?: string };
+  whatsapp: WhatsAppStatus;
 }
 export interface SchoolSummary {
   students: number; teachers: number; classes: number;
