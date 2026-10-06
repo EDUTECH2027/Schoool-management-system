@@ -11,6 +11,7 @@ import Badge from '../../composants/ui/Badge';
 import { api } from '../../api/client';
 import type { PlatformDashboardData, PlatformSchool, SubscriptionPlan, CreateSchoolInput, CreateSchoolResult } from '../../api/client';
 import LoadingScreen from '../../composants/ui/LoadingScreen';
+import WhatsAppDeliveryNotice from '../../composants/ui/WhatsAppDeliveryNotice';
 
 const DONUT_COLORS = ['#4f46e5', '#0ea5e9', '#f59e0b', '#10b981', '#a855f7'];
 
@@ -216,18 +217,12 @@ export default function PlatformDashboard() {
             <form onSubmit={submitCreate} className="bg-white dark:bg-slate-900 p-5 space-y-3">
               {error && <p className="text-red-600 text-xs">{error}</p>}
               {createResult && (
-                createResult.whatsapp.sent ? (
-                  <div className="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-3 text-xs text-green-800 dark:text-green-300">
-                    School created. An account activation link was sent to the administrator on WhatsApp.
-                  </div>
-                ) : (
-                  <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-900 dark:text-amber-200 space-y-1">
-                    <p>School created, but the WhatsApp message was <strong>not sent</strong>: {createResult.whatsapp.error}</p>
-                    {createResult.admin.activationLink && (
-                      <p className="break-all">Send the administrator ({createResult.admin.email}) this one-time activation link, valid 7 days: <strong>{createResult.admin.activationLink}</strong></p>
-                    )}
-                  </div>
-                )
+                <WhatsAppDeliveryNotice
+                  schoolId={createResult.school.id}
+                  adminEmail={createResult.admin.email}
+                  activationLink={createResult.admin.activationLink}
+                  sendResult={createResult.whatsapp}
+                />
               )}
               <div>
                 <label className="text-xs font-medium text-slate-600 dark:text-slate-300">School Name *</label>

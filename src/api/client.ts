@@ -501,6 +501,7 @@ export const api = {
     getSchoolSummary:(id: string) => request<SchoolSummary>('GET', `/platform/schools/${id}/summary`),
     createSchool:    (data: CreateSchoolInput) =>
       request<CreateSchoolResult>('POST', '/platform/schools', data),
+    getWhatsAppStatus: (id: string) => request<WhatsAppDelivery>('GET', `/platform/schools/${id}/whatsapp-status`),
     resendCredentials: (id: string, admin_phone: string) =>
       request<Omit<CreateSchoolResult, 'school'>>('POST', `/platform/schools/${id}/resend-credentials`, { admin_phone }),
     updateSchool:    (id: string, data: Partial<PlatformSchool>) => request<PlatformSchool>('PUT', `/platform/schools/${id}`, data),
@@ -698,10 +699,15 @@ export interface CreateSchoolInput {
 export interface WhatsAppStatus {
   sent: boolean; message_id?: string; status?: string; error?: string; code?: string | number; retryable?: boolean;
 }
+// Latest outcome of the activation message. 'accepted' = Meta took it but no delivery report yet.
+export interface WhatsAppDelivery {
+  state: 'none' | 'accepted' | 'delivered' | 'read' | 'failed';
+  error?: string; code?: string | number; at?: string; message_id?: string;
+}
 export interface CreateSchoolResult {
   school: PlatformSchool;
-  // activationLink is present only when WhatsApp delivery failed
-  admin: { email: string; activationLink?: string };
+  // One-time link the admin uses to set their password (always returned so it can be shared by hand)
+  admin: { email: string; activationLink: string };
   whatsapp: WhatsAppStatus;
 }
 export interface SchoolSummary {

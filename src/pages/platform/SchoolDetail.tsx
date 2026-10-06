@@ -8,7 +8,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import Badge from '../../composants/ui/Badge';
 import { api } from '../../api/client';
-import type { PlatformSchool, SchoolSummary, SubscriptionPlan } from '../../api/client';
+import type { PlatformSchool, SchoolSummary, SubscriptionPlan, WhatsAppDelivery, CreateSchoolResult } from '../../api/client';
+import WhatsAppDeliveryNotice from '../../composants/ui/WhatsAppDeliveryNotice';
 
 export default function SchoolDetail() {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +19,11 @@ export default function SchoolDetail() {
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [delivery, setDelivery] = useState<WhatsAppDelivery | null>(null);
+  const [resendPhone, setResendPhone] = useState('');
+  const [resending, setResending] = useState(false);
+  const [resendResult, setResendResult] = useState<Omit<CreateSchoolResult, 'school'> | null>(null);
+  const [resendError, setResendError] = useState('');
 
   const load = () => {
     if (!id) return;
@@ -27,6 +33,27 @@ export default function SchoolDetail() {
       .finally(() => setLoading(false));
   };
   useEffect(load, [id]);
+  useEffect(() => {
+    if (id) api.platform.getWhatsAppStatus(id).then(setDelivery).catch(() => setDelivery({ state: 'none' }));
+  }, [id]);
+
+  const resend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!school) return;
+    setResendError(''); setResending(true); setResendResult(null);
+    try {
+      setResendResult(await api.platform.resendCredentials(school.id, resendPhone));
+    } catch (err) {
+      setResendError(err instanceof Error ? err.message : 'Could not resend');
+    } finally {
+      setResending(false);
+    }
+  };
+
+  const deliveryLabel: Record<WhatsAppDelivery['state'], string> = {
+    none: 'No message sent yet', accepted: 'Accepted by WhatsApp — delivery not confirmed',
+    delivered: 'Delivered', read: 'Delivered and read', failed: 'Failed',
+  };
 
   const toggleStatus = async () => {
     if (!school) return;
@@ -118,6 +145,31 @@ export default function SchoolDetail() {
               <span className="text-slate-800 dark:text-slate-100">{school.subscription_expiry ? new Date(school.subscription_expiry).toLocaleDateString() : 'No expiry'}</span>
             </div>
           </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-5 space-y-3">
+          <h3 className="text-slate-800 dark:text-slate-100 font-semibold">Administrator account link (WhatsApp)</h3>
+          <div className="flex justify-between text-sm">
+            <span className="text-slate-500">Last message</span>
+            <span className={delivery?.state === 'failed' ? 'text-amber-600' : 'text-slate-800 dark:text-slate-100'}>
+              {delivery ? deliveryLabel[delivery.state] : '…'}
+              {delivery?.state === 'failed' && delivery.error ? ` — ${delivery.error}` : ''}
+            </span>
+          </div>
+          <form onSubmit={resend} className="flex flex-wrap gap-2">
+            <input required type="tel" placeholder="+237 6XX XX XX XX" value={resendPhone} onChange={e => setResendPhone(e.target.value)}
+              className="flex-1 min-w-40 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+            <button disabled={resending} type="submit"
+              className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white">
+              {resending ? 'Sending…' : 'Send a new link'}
+            </button>
+          </form>
+          <p className="text-[11px] text-slate-400">Creates a fresh one-time link (the old one stops working) and sends it to this number.</p>
+          {resendError && <p className="text-red-600 text-xs">{resendError}</p>}
+          {resendResult && (
+            <WhatsAppDeliveryNotice schoolId={school.id} adminEmail={resendResult.admin.email}
+              activationLink={resendResult.admin.activationLink} sendResult={resendResult.whatsapp} />
+          )}
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700 p-5">
