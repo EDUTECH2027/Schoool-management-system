@@ -5,9 +5,10 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, Trash2 } from 'lucide-react';
 import Badge from '../../composants/ui/Badge';
 import { api } from '../../api/client';
+import DeleteSchoolDialog from '../../composants/ui/DeleteSchoolDialog';
 import type { PlatformSchool } from '../../api/client';
 
 export default function Schools() {
@@ -16,6 +17,7 @@ export default function Schools() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [deleting, setDeleting] = useState<PlatformSchool | null>(null);
 
   const load = () => {
     api.platform.getSchools().then(setSchools).catch(console.error).finally(() => setLoading(false));
@@ -95,9 +97,20 @@ export default function Schools() {
                   <td className="px-5 py-3"><Badge label={s.status} variant={s.status === 'active' ? 'green' : 'red'} /></td>
                   <td className="px-5 py-3 text-slate-500 dark:text-slate-400 text-xs">{new Date(s.created_at).toLocaleDateString()}</td>
                   <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
-                    <button onClick={(e) => toggleStatus(s, e)} className="text-xs font-medium text-indigo-600 hover:underline">
-                      {s.status === 'active' ? 'Deactivate' : 'Activate'}
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button onClick={(e) => toggleStatus(s, e)} className="text-xs font-medium text-indigo-600 hover:underline">
+                        {s.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleting(s)}
+                        title="Delete school"
+                        aria-label={`Delete ${s.name}`}
+                        className="inline-flex items-center justify-center p-1 rounded-md text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -108,6 +121,9 @@ export default function Schools() {
           </table>
         </div>
       </div>
+      {deleting && (
+        <DeleteSchoolDialog school={deleting} onClose={() => setDeleting(null)} onDeleted={() => { setDeleting(null); load(); }} />
+      )}
     </div>
   );
 }

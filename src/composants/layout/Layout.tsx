@@ -5,7 +5,8 @@
  */
 import { useEffect, useState } from 'react';
 import { Suspense } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
+import { RefreshProvider, RefreshableOutlet } from '../../context/RefreshContext';
 import LoadingScreen from '../ui/LoadingScreen';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -19,6 +20,7 @@ export default function Layout() {
   }, [location.pathname]);
 
   return (
+    <RefreshProvider>
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden">
       <div
         className={`fixed inset-0 z-40 bg-slate-950/60 backdrop-blur-sm transition-opacity lg:hidden ${mobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
@@ -33,10 +35,11 @@ export default function Layout() {
         <Header onMenuToggle={() => setMobileMenuOpen((value) => !value)} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 dark:bg-slate-950">
           <Suspense fallback={<LoadingScreen variant="page" />}>
-            <Outlet />
+            <RefreshableOutlet />
           </Suspense>
         </main>
       </div>
     </div>
+    </RefreshProvider>
   );
 }

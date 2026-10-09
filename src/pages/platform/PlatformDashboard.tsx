@@ -5,13 +5,14 @@
  */
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { School, GraduationCap, Users2, UserRound, Wallet, Plus } from 'lucide-react';
+import { School, GraduationCap, Users2, UserRound, Wallet, Plus, Trash2 } from 'lucide-react';
 import StatCard from '../../composants/ui/StatCard';
 import Badge from '../../composants/ui/Badge';
 import { api } from '../../api/client';
 import type { PlatformDashboardData, PlatformSchool, SubscriptionPlan, CreateSchoolInput, CreateSchoolResult } from '../../api/client';
 import LoadingScreen from '../../composants/ui/LoadingScreen';
-import WhatsAppDeliveryNotice from '../../composants/ui/WhatsAppDeliveryNotice';
+import CredentialsEmailNotice from '../../composants/ui/CredentialsEmailNotice';
+import DeleteSchoolDialog from '../../composants/ui/DeleteSchoolDialog';
 
 const DONUT_COLORS = ['#4f46e5', '#0ea5e9', '#f59e0b', '#10b981', '#a855f7'];
 
@@ -93,9 +94,10 @@ export default function PlatformDashboard() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<CreateSchoolInput>({ name: '', email: '', phone: '', plan_id: '', admin_name: '', admin_email: '', admin_phone: '' });
+  const [form, setForm] = useState<CreateSchoolInput>({ name: '', email: '', phone: '', plan_id: '', admin_name: '', admin_email: '' });
   const [createResult, setCreateResult] = useState<CreateSchoolResult | null>(null);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState<PlatformSchool | null>(null);
 
   const load = () => {
     Promise.all([api.platform.getDashboard(), api.platform.getSchools(), api.platform.getPlans()])
@@ -117,7 +119,7 @@ export default function PlatformDashboard() {
     try {
       const res = await api.platform.createSchool(form);
       setCreateResult(res);
-      setForm({ name: '', email: '', phone: '', plan_id: '', admin_name: '', admin_email: '', admin_phone: '' });
+      setForm({ name: '', email: '', phone: '', plan_id: '', admin_name: '', admin_email: '' });
       load();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create school');
@@ -194,9 +196,20 @@ export default function PlatformDashboard() {
                       <Badge label={s.status} variant={s.status === 'active' ? 'green' : 'red'} />
                     </td>
                     <td className="px-5 py-3" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => toggleStatus(s)} className="text-xs font-medium text-indigo-600 hover:underline">
-                        {s.status === 'active' ? 'Deactivate' : 'Activate'}
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button onClick={() => toggleStatus(s)} className="text-xs font-medium text-indigo-600 hover:underline">
+                          {s.status === 'active' ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDeleting(s)}
+                          title="Delete school"
+                          aria-label={`Delete ${s.name}`}
+                          className="inline-flex items-center justify-center p-1 rounded-md text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -217,11 +230,10 @@ export default function PlatformDashboard() {
             <form onSubmit={submitCreate} className="bg-white dark:bg-slate-900 p-5 space-y-3">
               {error && <p className="text-red-600 text-xs">{error}</p>}
               {createResult && (
-                <WhatsAppDeliveryNotice
-                  schoolId={createResult.school.id}
+                <CredentialsEmailNotice
                   adminEmail={createResult.admin.email}
-                  activationLink={createResult.admin.activationLink}
-                  sendResult={createResult.whatsapp}
+                  email={createResult.email}
+                  tempPassword={createResult.admin.tempPassword}
                 />
               )}
               <div>
@@ -253,15 +265,9 @@ export default function PlatformDashboard() {
                   className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div>
-                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Admin Email *</label>
+                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Admin Email * <span className="font-normal text-slate-400">(login details are emailed here)</span></label>
                 <input required type="email" value={form.admin_email} onChange={e => setForm({ ...form, admin_email: e.target.value })}
                   className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-slate-600 dark:text-slate-300">Admin WhatsApp Number *</label>
-                <input required type="tel" placeholder="+237 6XX XX XX XX" value={form.admin_phone ?? ''} onChange={e => setForm({ ...form, admin_phone: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 text-sm border border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" />
-                <p className="text-[11px] text-slate-400 mt-1">A secure account-activation link is sent here via WhatsApp.</p>
               </div>
               <button disabled={creating} type="submit"
                 className="w-full flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium text-sm py-2.5 rounded-lg transition-colors">
@@ -291,6 +297,9 @@ export default function PlatformDashboard() {
           </div>
         </div>
       </div>
+      {deleting && (
+        <DeleteSchoolDialog school={deleting} onClose={() => setDeleting(null)} onDeleted={() => { setDeleting(null); load(); }} />
+      )}
     </div>
   );
 }

@@ -166,6 +166,9 @@ function cachedGet<T>(key: string, path: string): Promise<T> {
   return refCache.get(key) as Promise<T>;
 }
 
+/** Forget cached reference data (subjects, grade levels) so the next read goes to the server. */
+export function clearApiCache() { refCache.clear(); }
+
 export const api = {
   // ── Auth ─────────────────────────────────────────────────────────
   login:  (email: string, password = '') =>
@@ -501,9 +504,11 @@ export const api = {
     getSchoolSummary:(id: string) => request<SchoolSummary>('GET', `/platform/schools/${id}/summary`),
     createSchool:    (data: CreateSchoolInput) =>
       request<CreateSchoolResult>('POST', '/platform/schools', data),
-    getWhatsAppStatus: (id: string) => request<WhatsAppDelivery>('GET', `/platform/schools/${id}/whatsapp-status`),
-    resendCredentials: (id: string, admin_phone: string) =>
-      request<Omit<CreateSchoolResult, 'school'>>('POST', `/platform/schools/${id}/resend-credentials`, { admin_phone }),
+    getCredentialsStatus: (id: string) => request<CredentialsStatus>('GET', `/platform/schools/${id}/credentials-status`),
+    resendCredentials: (id: string) =>
+      request<Omit<CreateSchoolResult, 'school'>>('POST', `/platform/schools/${id}/resend-credentials`, {}),
+    deleteSchool:    (id: string, confirm_name: string) =>
+      request<{ deleted: boolean; schema_dropped: boolean; files_removed: boolean }>('DELETE', `/platform/schools/${id}`, { confirm_name }),
     updateSchool:    (id: string, data: Partial<PlatformSchool>) => request<PlatformSchool>('PUT', `/platform/schools/${id}`, data),
     activateSchool:  (id: string) => request<PlatformSchool>('PATCH', `/platform/schools/${id}/activate`),
     deactivateSchool:(id: string) => request<PlatformSchool>('PATCH', `/platform/schools/${id}/deactivate`),
@@ -694,21 +699,20 @@ export interface PlatformSchool {
 }
 export interface CreateSchoolInput {
   name: string; email: string; phone?: string; address?: string; plan_id: string;
-  admin_name: string; admin_email: string; admin_phone?: string;
+  admin_name: string; admin_email: string;
 }
-export interface WhatsAppStatus {
-  sent: boolean; message_id?: string; status?: string; error?: string; code?: string | number; retryable?: boolean;
+// Outcome of emailing the administrator their first-login credentials (via Brevo).
+export interface EmailStatus {
+  sent: boolean; message_id?: string; error?: string; code?: string | number; retryable?: boolean;
 }
-// Latest outcome of the activation message. 'accepted' = Meta took it but no delivery report yet.
-export interface WhatsAppDelivery {
-  state: 'none' | 'accepted' | 'delivered' | 'read' | 'failed';
-  error?: string; code?: string | number; at?: string; message_id?: string;
+export interface CredentialsStatus {
+  state: 'none' | 'sent' | 'failed'; at?: string; to?: string; error?: string; code?: string | number;
 }
 export interface CreateSchoolResult {
   school: PlatformSchool;
-  // One-time link the admin uses to set their password (always returned so it can be shared by hand)
-  admin: { email: string; activationLink: string };
-  whatsapp: WhatsAppStatus;
+  // tempPassword is present ONLY when the email could not be sent (so it can be handed over by hand)
+  admin: { email: string; tempPassword?: string };
+  email: EmailStatus;
 }
 export interface SchoolSummary {
   students: number; teachers: number; classes: number;

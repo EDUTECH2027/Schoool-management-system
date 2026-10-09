@@ -8,6 +8,7 @@ import { Bell, Search, Globe, LogOut, ChevronDown, Sun, Moon, Menu } from 'lucid
 import { useLocation } from 'react-router-dom';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAuth } from '../../context/AuthContext';
+import RefreshButton from '../ui/RefreshButton';
 import { useTheme } from '../../context/ThemeContext';
 
 interface HeaderProps {
@@ -90,6 +91,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
             <p className="text-xs text-slate-500 dark:text-slate-400">{user?.role ?? ''}</p>
           </div>
           <div className="flex items-center gap-1">
+            <RefreshButton className="h-8 w-8 border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800" />
             <button
               type="button"
               onClick={() => setLang(lang === 'en' ? 'fr' : 'en')}
@@ -144,6 +146,9 @@ export default function Header({ onMenuToggle }: HeaderProps) {
             <Globe size={11} /> FR
           </button>
         </div>
+
+        {/* Refresh the current page's data from the database */}
+        <RefreshButton className="p-2" />
 
         {/* Dark / light toggle */}
         <button
