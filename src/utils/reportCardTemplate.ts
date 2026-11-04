@@ -28,6 +28,8 @@ export type TableColumnKey = 'subject_name' | 'ca_score' | 'exam_score' | 'coeff
 export interface TableColumn {
   key: TableColumnKey;
   widthFrac: number; // fraction of the table's own width
+  align?: 'left' | 'center'; // set by auto-detection; absent = legacy left-aligned
+  gapBeforeFrac?: number;    // unmapped template column(s) skipped before this one
 }
 
 export interface TableField {
@@ -38,6 +40,8 @@ export interface TableField {
   fontSize: number;
   headerFontSize: number;
   columns: TableColumn[];
+  drawHeader?: boolean; // false = the PDF already prints the header row (auto-detected tables)
+  maxRows?: number;     // printed body rows available in the template; more rows are squeezed to fit
 }
 
 export type TemplateField = SimpleField | TableField;
@@ -106,7 +110,7 @@ export function defaultSimpleField(key: SimpleFieldKey): SimpleField {
 
 // ── Data the template can draw from ─────────────────────────────────────────
 export interface TemplateEntry {
-  subject_name: string; ca_score: number; exam_score: number;
+  subject_name: string; ca_score: number; exam_score: number | null;
   coefficient: number; total_score: number; grade: string; remark: string;
 }
 
@@ -118,13 +122,16 @@ export interface TemplateReportCard {
   conduct: string | null; days_present: number; total_school_days: number;
   class_teacher_comment: string | null; head_teacher_comment: string | null;
   entries: TemplateEntry[];
+  // Set for single-sequence cards (1, 3 or 5): only the first mark column is meaningful.
+  sequence?: number;
 }
 
 export interface TemplateSchoolInfo {
   name: string; motto: string; address: string; headTeacher: string;
 }
 
-export function termLabelOf(termName: string, lang: 'en' | 'fr'): string {
+export function termLabelOf(termName: string, lang: 'en' | 'fr', sequence?: number): string {
+  if (sequence) return lang === 'fr' ? `Séquence ${sequence}` : `Sequence ${sequence}`;
   const n = termName === 'first' ? 1 : termName === 'second' ? 2 : 3;
   return lang === 'fr' ? `Trimestre ${n}` : `Term ${n}`;
 }
@@ -139,10 +146,10 @@ export function resolveSimpleValue(key: SimpleFieldKey, rc: TemplateReportCard, 
     case 'student_number':        return rc.student_number || '';
     case 'class_name':            return rc.class_name || '';
     case 'academic_year':         return rc.academic_year || '';
-    case 'term_label':            return termLabelOf(rc.term_name, lang);
+    case 'term_label':            return termLabelOf(rc.term_name, lang, rc.sequence);
     case 'percentage':            return `${rc.percentage ?? 0}%`;
     case 'sequence1_average':     return `${rc.sequence1_average ?? 0}%`;
-    case 'sequence2_average':     return `${rc.sequence2_average ?? 0}%`;
+    case 'sequence2_average':     return rc.sequence ? '' : `${rc.sequence2_average ?? 0}%`;
     case 'class_position':        return `${rc.class_position ?? '—'}/${rc.out_of ?? '—'}`;
     case 'conduct':                return rc.conduct || '—';
     case 'attendance': {
@@ -189,35 +196,68 @@ export async function renderPdfFirstPage(bytes: ArrayBuffer, targetWidthPx: numb
 }
 
 // ── Filling the template with real data, one page per student ──────────────
+function cellText(col: TableColumnKey, entry: TemplateEntry): string {
+  switch (col) {
+    case 'subject_name': return entry.subject_name || '';
+    case 'ca_score':     return String(entry.ca_score ?? 0);
+    case 'exam_score':   return entry.exam_score == null ? '' : String(entry.exam_score);
+    case 'coefficient':  return String(entry.coefficient ?? 1);
+    case 'total_score':  return String(entry.total_score ?? 0);
+    case 'grade':        return entry.grade || '';
+    case 'remark':       return entry.remark || '';
+  }
+}
+
+function fitText(text: string, font: PDFFont, size: number, maxWidth: number): string {
+  let t = text;
+  while (t.length > 1 && font.widthOfTextAtSize(t, size) > maxWidth) t = t.slice(0, -1);
+  return t;
+}
+
 function drawTableField(page: PDFPage, field: TableField, rc: TemplateReportCard, pageWidth: number, pageHeight: number, font: PDFFont, boldFont: PDFFont, lang: 'en' | 'fr') {
   const tableX = field.x * pageWidth;
   const tableTop = pageHeight - field.y * pageHeight;
   const tableWidth = field.width * pageWidth;
-  const rowH = field.rowHeight * pageHeight;
+  let rowH = field.rowHeight * pageHeight;
   const color = rgb(0.06, 0.09, 0.16);
+  const detected = field.drawHeader === false; // auto-detected table: header is already printed on the template
 
-  let colX = tableX;
-  field.columns.forEach(col => {
-    page.drawText(columnLabel(col.key, lang), { x: colX + 2, y: tableTop - field.headerFontSize, size: field.headerFontSize, font: boldFont, color });
-    colX += col.widthFrac * tableWidth;
-  });
+  if (!detected) {
+    let colX = tableX;
+    field.columns.forEach(col => {
+      const label = rc.sequence && col.key === 'exam_score' ? '' : columnLabel(col.key, lang);
+      page.drawText(label, { x: colX + 2, y: tableTop - field.headerFontSize, size: field.headerFontSize, font: boldFont, color });
+      colX += col.widthFrac * tableWidth;
+    });
+  }
+
+  // More subjects than the template has printed rows: squeeze rather than run off the table.
+  let fontSize = field.fontSize;
+  if (detected && field.maxRows && rc.entries.length > field.maxRows) {
+    const k = field.maxRows / rc.entries.length;
+    rowH *= k;
+    fontSize = Math.max(6, fontSize * Math.max(k, 0.75));
+  }
 
   rc.entries.forEach((entry, rowIdx) => {
-    const rowY = tableTop - rowH * (rowIdx + 1) - field.fontSize;
+    const rowY = detected
+      ? tableTop - rowH * rowIdx - rowH / 2 - fontSize * 0.35
+      : tableTop - rowH * (rowIdx + 1) - fontSize;
     let cx = tableX;
     field.columns.forEach(col => {
-      let text = '';
-      switch (col.key) {
-        case 'subject_name': text = entry.subject_name || ''; break;
-        case 'ca_score':     text = String(entry.ca_score ?? 0); break;
-        case 'exam_score':   text = String(entry.exam_score ?? 0); break;
-        case 'coefficient':  text = String(entry.coefficient ?? 1); break;
-        case 'total_score':  text = String(entry.total_score ?? 0); break;
-        case 'grade':         text = entry.grade || ''; break;
-        case 'remark':        text = entry.remark || ''; break;
+      cx += (col.gapBeforeFrac ?? 0) * tableWidth;
+      const colW = col.widthFrac * tableWidth;
+      let text = rc.sequence && col.key === 'exam_score' ? '' : cellText(col.key, entry);
+      if (detected) {
+        const useFont = col.key === 'grade' ? boldFont : font;
+        text = fitText(text, useFont, fontSize, colW - 4);
+        const tw = useFont.widthOfTextAtSize(text, fontSize);
+        const x = col.align === 'center' ? cx + (colW - tw) / 2 : cx + 2;
+        page.drawText(text, { x, y: rowY, size: fontSize, font: useFont, color });
+      } else {
+        page.drawText(text, { x: cx + 2, y: rowY, size: fontSize, font, color });
       }
-      page.drawText(text, { x: cx + 2, y: rowY, size: field.fontSize, font, color });
-      cx += col.widthFrac * tableWidth;
+      cx += colW;
     });
   });
 }

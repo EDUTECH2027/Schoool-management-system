@@ -31,6 +31,7 @@ export default function TeacherMarks() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [marksOpen, setMarksOpen] = useState(true);
+  const [classCoefs, setClassCoefs] = useState<Record<string, number>>({});
 
   useEffect(() => {
     Promise.all([api.portalTeacherClasses(), api.getTerms(), api.getSubjects(), api.getMarksSettings().catch(() => null)])
@@ -48,6 +49,7 @@ export default function TeacherMarks() {
   useEffect(() => {
     if (!classId) return;
     api.getClassStudents(classId).then(setStudents).catch(() => {});
+    api.getCoefficients(classId).then(setClassCoefs).catch(() => setClassCoefs({}));
   }, [classId]);
 
   useEffect(() => {
@@ -96,7 +98,7 @@ export default function TeacherMarks() {
         </select>
         <select value={subjectId} onChange={e => { setSubjectId(e.target.value); setSubjectName(subjects.find(s => s.id === e.target.value)?.name ?? ''); }}
           className="border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-          {subjects.map(s => <option key={s.id} value={s.id}>{s.name} (coef. {s.coefficient})</option>)}
+          {subjects.map(s => <option key={s.id} value={s.id}>{s.name} (coef. {classCoefs[s.id] ?? s.coefficient})</option>)}
         </select>
       </div>
 

@@ -229,6 +229,12 @@ export const api = {
   getSubjects:    () => cachedGet<Subject[]>('subjects', '/subjects'),
   createSubject:  (data: Partial<Subject>) => request<Subject>('POST', '/subjects', data).then(r => { refCache.delete('subjects'); return r; }),
   updateSubject:  (id: string, data: Partial<Subject>) => request<Subject>('PUT', `/subjects/${id}`, data).then(r => { refCache.delete('subjects'); return r; }),
+  /** Effective coefficient of every subject in a class (override or default). Without classId: the defaults. */
+  getCoefficients: (classId?: string) =>
+    request<Record<string, number>>('GET', `/subjects/coefficients${classId ? `?classId=${classId}` : ''}`),
+  getCoefficientOverrides: () => request<CoefficientOverride[]>('GET', '/subjects/coefficient-overrides'),
+  saveCoefficientOverrides: (subjectId: string, overrides: { classId?: string; gradeLevelId?: string; coefficient: number }[]) =>
+    request<CoefficientOverride[]>('PUT', `/subjects/${subjectId}/coefficient-overrides`, { overrides }),
   deleteSubject:  (id: string) => request<void>('DELETE', `/subjects/${id}`).then(r => { refCache.delete('subjects'); return r; }),
 
   // ── Teachers ─────────────────────────────────────────────────────
@@ -340,6 +346,33 @@ export const api = {
   updateReportCard:     (id: string, data: unknown) => request<ReportCard>('PUT', `/report-cards/${id}`, data),
   getAnnualSummary:     (params: { studentId: string; academicYearId: string }) =>
     request<AnnualSummary>('GET', `/report-cards/annual-summary${toQS(params)}`),
+
+  // ── End of year (promotion, repetition, master sheets) ───────────
+  eoy: {
+    getConfig:   () => request<EoyConfig>('GET', '/end-of-year/config'),
+    saveConfig:  (data: EoyConfig) => request<EoyConfig>('PUT', '/end-of-year/config', data),
+    getProgression: () => request<EoyProgressionRow[]>('GET', '/end-of-year/progression'),
+    saveProgression: (classId: string, data: { nextClassId: string | null; isFinalClass: boolean }) =>
+      request<{ id: string }>('PUT', `/end-of-year/progression/${classId}`, data),
+    closeYear:   (id: string) => request<{ closedAt: string }>('POST', `/end-of-year/years/${id}/close`, {}),
+    reopenYear:  (id: string) => request<{ closedAt: null }>('POST', `/end-of-year/years/${id}/reopen`, {}),
+    readiness:   (p: { yearId: string; classId: string }) => request<EoyReadiness>('GET', `/end-of-year/readiness${toQS(p)}`),
+    calculate:   (p: { yearId: string; classId: string }) => request<EoyCalcResult>('POST', '/end-of-year/calculate', p),
+    decisions:   (p: { yearId: string; classId: string }) => request<EoyDecisions>('GET', `/end-of-year/decisions${toQS(p)}`),
+    decide:      (id: string, data: { status: YearEndStatus; comment?: string; targetClassId?: string | null }) =>
+      request<EoyDecisionView>('PUT', `/end-of-year/decisions/${id}`, data),
+    acceptProposals: (p: { yearId: string; classId: string }) =>
+      request<{ accepted: number }>('POST', '/end-of-year/decisions/accept-proposals', p),
+    preview:     (p: { yearId: string; classId: string; nextYearId: string }) => request<EoyPreview>('GET', `/end-of-year/preview${toQS(p)}`),
+    confirm:     (p: { yearId: string; classId: string; nextYearId: string; note?: string }) =>
+      request<EoyConfirmResult>('POST', '/end-of-year/confirm', p),
+    reverse:     (p: { yearId: string; classId: string; reason: string }) =>
+      request<{ reverted: number; warnings: string[] }>('POST', '/end-of-year/reverse', p),
+    run:         (p: { yearId: string; classId: string }) => request<EoyRun | null>('GET', `/end-of-year/run${toQS(p)}`),
+    audit:       (p: { yearId: string; classId: string }) => request<EoyAuditRow[]>('GET', `/end-of-year/audit${toQS(p)}`),
+    masterSheet: (p: { yearId: string; classId: string; termId?: string; subjectId?: string }) =>
+      request<MasterSheet>('GET', `/end-of-year/master-sheet${toQS(p as Record<string, string>)}`),
+  },
   setReportCardStatus:  (id: string, status: string) =>
     request<ReportCard>('PATCH', `/report-cards/${id}/status`, { status }),
 
@@ -615,11 +648,73 @@ export interface LicenseStatus {
   expiresAt?: string | null;
 }
 export interface School { id: string; name: string; code: string; address: string; phone: string; email: string; head_teacher: string; motto: string; logo_url?: string; require_admin_2fa?: boolean; }
-export interface AcademicYear { id: string; label: string; start_date: string; end_date: string; is_current: number; }
+export interface AcademicYear { id: string; label: string; start_date: string; end_date: string; is_current: number; closed_at?: string | null; }
+
+// ── End-of-year types ────────────────────────────────────────────────────────
+export type YearEndStatus = 'pending_review' | 'promoted' | 'repeating' | 'withdrawn' | 'transferred' | 'graduated';
+export interface EoyConfig { passAverage: number; finalClassOutcome: 'graduate' | 'hold'; }
+export interface EoyProgressionRow {
+  id: string; name: string; gradeLevelName: string | null; nextClassId: string | null; isFinalClass: boolean;
+  resolved: { kind: 'class'; classId: string; className?: string; configured: boolean } | { kind: 'final' } | { kind: 'unresolved'; reason: string };
+}
+export interface EoyReadiness {
+  studentCount: number; completeStudents: number; incompleteStudents: number; yearClosed: boolean; ready: boolean; blockers: string[];
+  terms: { name: string; defined: boolean; subjects: number; studentsGraded: number }[];
+}
+export interface EoyCalcResult { passAverage: number; created: number; updated: number; locked: number; proposed: Record<string, number>; }
+export interface EoyDecisionView {
+  id: string; status: YearEndStatus; proposedStatus: YearEndStatus; validated: boolean; validatedAt: string | null; validatedBy: string | null;
+  isOverride: boolean; comment: string | null; targetClassId: string | null; applied: boolean; incompleteReason: string | null;
+}
+export interface EoyDecisionRow {
+  studentId: string; name: string; matricule: string; average: number | null; rank: number | null;
+  termsFound: number; complete: boolean; issues: string[]; decision: EoyDecisionView | null;
+}
+export interface EoyDecisions { passAverage: number; yearClosed: boolean; calculated: boolean; rows: EoyDecisionRow[]; }
+export interface EoyPlanItem {
+  decisionId: string; studentId: string; name: string; matricule: string; status: YearEndStatus;
+  action: 'promote' | 'repeat' | 'graduate' | 'hold' | 'exit' | 'skip_pending' | 'already_applied';
+  targetClassId: string | null; targetClassName: string | null; blockers: string[]; warnings: string[];
+}
+export interface EoyPreview {
+  year: { id: string; label: string }; nextYear: { id: string; label: string }; class: { id: string; name: string };
+  plan: EoyPlanItem[]; summary: Record<string, number>; checks: { ok: boolean; message: string }[]; canConfirm: boolean; pendingCount: number;
+}
+export interface EoyRun {
+  id: string; status: 'confirmed' | 'reversed'; nextYearId: string; confirmedAt: string; confirmedBy: string | null;
+  reversedAt: string | null; reversedBy: string | null; note: string | null; totals: Record<string, number> | null;
+}
+export interface EoyConfirmResult { run: { id: string; status: string; confirmedAt: string; confirmedBy: string | null; totals: Record<string, number> | null }; applied: Record<string, number>; }
+export interface EoyAuditRow { id: string; action: string; actor: string | null; studentId: string | null; at: string; details: Record<string, unknown> | null; }
+export interface MasterSheetRow {
+  studentId: string; name: string; matricule: string; marks: Record<string, number | null>;
+  termAverages: { first: number | null; second: number | null; third: number | null };
+  average: number | null; provisional: boolean; weightedTotal: number | null; totalCoefficient: number | null;
+  rank: number | null; complete: boolean; issues: string[]; termsFound: number;
+  finalStatus: YearEndStatus; statusValidated: boolean; proposedStatus: YearEndStatus | null;
+}
+export interface SubjectLeader {
+  subjectId: string; subjectName: string; coefficient: number; average: number | null; highest: number | null; lowest: number | null; graded: number;
+  best: { studentId: string; name: string; matricule: string; mark: number; rank: number }[];
+  top: { studentId: string; name: string; matricule: string; mark: number; rank: number }[];
+}
+export interface MasterSheet {
+  year: { id: string; label: string; closed: boolean }; class: { id: string; name: string }; term: string | null; provisional: boolean;
+  subjects: { id: string; name: string; coefficient: number }[];
+  rows: MasterSheetRow[];
+  bestStudents: { studentId: string; name: string; matricule: string; average: number | null; rank: number; weightedTotal: number | null }[];
+  subjectLeaders: SubjectLeader[];
+  stats: {
+    studentCount: number; gradedCount: number; classAverage: number | null; highestAverage: number | null; lowestAverage: number | null;
+    distribution: Record<string, number>; promoted: number; promotedPct: number; repeating: number; repeatingPct: number;
+    pendingReview: number; pendingReviewPct: number; withdrawn: number; transferred: number; graduated: number;
+  };
+}
 export interface Term { id: string; academic_year_id: string; name: string; start_date: string; end_date: string; is_current: number; }
 export interface MarksSettings { is_enabled: boolean; opens_at: string | null; closes_at: string | null; is_open: boolean; }
 export interface GradeLevel { id: string; name: string; sort_order: number; }
 export interface Subject { id: string; name: string; code: string; coefficient: number; }
+export interface CoefficientOverride { id?: string; subjectId: string; classId: string | null; gradeLevelId: string | null; coefficient: number; }
 export interface Teacher { id: string; first_name: string; last_name: string; email: string; phone: string; gender: string; subjects: string[]; class_assigned?: string; qualification: string; join_date: string; is_active: number; documents?: { id: string; title: string; file_url: string; created_at: string }[]; }
 export interface TeacherInput { firstName?: string; lastName?: string; email?: string; phone?: string; gender?: string; subjects?: string[]; classAssigned?: string; qualification?: string; joinDate?: string; isActive?: boolean; }
 export interface CreateTeacherInput extends TeacherInput { documents?: { title: string; file: File }[]; }

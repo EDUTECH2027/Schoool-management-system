@@ -6,10 +6,12 @@
 import { useState } from 'react';
 import {
   X, Mail, Phone, Search, BookOpen,
-  Users, GraduationCap, Calendar,
+  Users, GraduationCap, Calendar, Trophy,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import type { Class, Student, Teacher } from '../../types';
 import { useLanguage } from '../../i18n/LanguageContext';
+import { useAuth } from '../../context/AuthContext';
 import { StatusBadge } from '../ui/Badge';
 
 interface Props {
@@ -31,7 +33,10 @@ const bannerGradients = [
 ];
 
 export default function ClassDetailModal({ cls, students, teacher, onClose }: Props) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'head_teacher';
   const [search, setSearch] = useState('');
 
   const boys   = students.filter(s => s.gender === 'male');
@@ -293,12 +298,22 @@ export default function ClassDetailModal({ cls, students, teacher, onClose }: Pr
           <p className="text-xs text-slate-400">
             {cls.name} &nbsp;·&nbsp; {cls.gradeLevelName} &nbsp;·&nbsp; {cls.room}
           </p>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
-          >
-            {t.common.cancel}
-          </button>
+          <div className="flex items-center gap-2">
+            {isAdmin && (
+              <button
+                onClick={() => navigate(`/master-sheet?classId=${cls.id}`)}
+                className="px-4 py-2 text-sm text-indigo-700 border border-indigo-200 bg-white rounded-lg hover:bg-indigo-50 transition-colors shadow-sm inline-flex items-center gap-1.5"
+              >
+                <Trophy size={14} /> {lang === 'fr' ? 'Tableau de classe' : 'Master sheet'}
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-slate-600 border border-slate-200 bg-white rounded-lg hover:bg-slate-50 transition-colors shadow-sm"
+            >
+              {t.common.cancel}
+            </button>
+          </div>
         </div>
       </div>
     </div>

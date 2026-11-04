@@ -27,6 +27,8 @@ const Certificates = lazy(() => import('../pages/Certificates'));
 const UserManagement = lazy(() => import('../pages/admin/UserManagement'));
 const AdminWithdrawals = lazy(() => import('../pages/admin/AdminWithdrawals'));
 const ReportCardTemplateDesigner = lazy(() => import('../pages/admin/ReportCardTemplateDesigner'));
+const EndOfYear = lazy(() => import('../pages/EndOfYear'));
+const MasterSheet = lazy(() => import('../pages/MasterSheet'));
 
 export default function AdminRoutes() {
   return (
@@ -52,6 +54,8 @@ export default function AdminRoutes() {
         <Route path="teacher-payment"   element={<TeacherPayment  />} />
         <Route path="user-management"   element={<UserManagement  />} />
         <Route path="withdrawals"       element={<AdminWithdrawals />} />
+        <Route path="end-of-year"       element={<EndOfYear        />} />
+        <Route path="master-sheet"      element={<MasterSheet      />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

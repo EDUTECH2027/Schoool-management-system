@@ -3,7 +3,7 @@
  * Proprietary and confidential. Unauthorized copying, distribution or
  * modification of this file, via any medium, is strictly prohibited.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Printer, Eye, Award, X, RefreshCw, BookOpen, Download } from 'lucide-react';
 import { useBranding } from '../context/BrandingContext';
 import { api, mediaUrl, type ClassRecord, type Student, type AnnualSummary, type ReportCardTemplate } from '../api/client';
@@ -11,6 +11,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { StatusBadge } from '../composants/ui/Badge';
 import { clsx } from 'clsx';
 import { fillTemplatePdf, type TemplateField } from '../utils/reportCardTemplate';
+import { SEQUENCE_OPTIONS, SEQUENCE_TERM, toSequenceCards, type SequenceNumber } from '../utils/sequenceReportCards';
 
 // Raw DB response types (snake_case)
 type RcEntry = {
@@ -29,6 +30,7 @@ type RcRecord = {
   days_present: number; days_absent: number; total_school_days: number;
   conduct: string | null; class_teacher_comment: string | null; head_teacher_comment: string | null;
   status: string; entries: RcEntry[];
+  sequence?: number; // set on derived single-sequence cards (1, 3, 5)
 };
 
 type TermRaw = { id: string; name: string; is_current: number; academic_year_id: string; start_date: string; end_date: string };
@@ -49,6 +51,8 @@ function PrintCard({ rc }: { rc: RcRecord }) {
   const termLabel = rc.term_name === 'first'  ? (lang === 'fr' ? 'Trimestre 1' : 'Term 1')
                   : rc.term_name === 'second' ? (lang === 'fr' ? 'Trimestre 2' : 'Term 2')
                   :                             (lang === 'fr' ? 'Trimestre 3' : 'Term 3');
+  const isSeq = !!rc.sequence;
+  const periodLabel = isSeq ? `${lang === 'fr' ? 'Séquence' : 'Sequence'} ${rc.sequence} (${termLabel})` : termLabel;
 
   const attendancePct = rc.total_school_days
     ? Math.round((rc.days_present / rc.total_school_days) * 100)
@@ -69,7 +73,9 @@ function PrintCard({ rc }: { rc: RcRecord }) {
         <p className="text-slate-600 text-sm italic">{schoolInfo.motto}</p>
         <p className="text-slate-500 text-xs mt-1">{schoolInfo.address} · {schoolInfo.phone}</p>
         <div className="mt-3 bg-indigo-700 text-white text-sm font-bold py-1.5 px-4 rounded inline-block uppercase tracking-widest">
-          {lang === 'fr' ? 'BULLETIN DE NOTES' : 'STUDENT PROGRESS REPORT'}
+          {isSeq
+            ? (lang === 'fr' ? `BULLETIN DE LA SÉQUENCE ${rc.sequence}` : `SEQUENCE ${rc.sequence} PROGRESS REPORT`)
+            : (lang === 'fr' ? 'BULLETIN DE NOTES' : 'STUDENT PROGRESS REPORT')}
         </div>
       </div>
 
@@ -90,7 +96,7 @@ function PrintCard({ rc }: { rc: RcRecord }) {
         <div className="space-y-1.5">
           {([
             [lang === 'fr' ? 'Année scolaire' : 'Academic Year', rc.academic_year],
-            [lang === 'fr' ? 'Trimestre'       : 'Term',          termLabel],
+            [isSeq ? (lang === 'fr' ? 'Période' : 'Period') : (lang === 'fr' ? 'Trimestre' : 'Term'), periodLabel],
             [lang === 'fr' ? 'Directeur'       : 'Head Teacher',  schoolInfo.headTeacher],
           ] as [string, string][]).map(([label, val]) => (
             <div key={label} className="flex gap-2">
@@ -106,10 +112,16 @@ function PrintCard({ rc }: { rc: RcRecord }) {
         <thead>
           <tr className="bg-slate-800 text-white">
             <th className="text-left px-3 py-2 font-semibold">{lang === 'fr' ? 'Matière' : 'Subject'}</th>
-            <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Séq 1 /100' : 'Seq 1 /100'}</th>
-            <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Séq 2 /100' : 'Seq 2 /100'}</th>
+            {isSeq ? (
+              <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? `Séq ${rc.sequence} /100` : `Seq ${rc.sequence} /100`}</th>
+            ) : (
+              <>
+                <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Séq 1 /100' : 'Seq 1 /100'}</th>
+                <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Séq 2 /100' : 'Seq 2 /100'}</th>
+              </>
+            )}
             <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Coef.' : 'Coef.'}</th>
-            <th className="text-center px-3 py-2 font-semibold">Total /100</th>
+            {!isSeq && <th className="text-center px-3 py-2 font-semibold">Total /100</th>}
             <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Mention' : 'Grade'}</th>
             <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Appréciation' : 'Remark'}</th>
           </tr>
@@ -119,9 +131,9 @@ function PrintCard({ rc }: { rc: RcRecord }) {
             <tr key={e.subject_id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'} style={{ borderBottom: '1px solid #e2e8f0' }}>
               <td className="px-3 py-2 font-medium text-slate-800">{e.subject_name}</td>
               <td className="px-3 py-2 text-center text-slate-700">{e.ca_score}</td>
-              <td className="px-3 py-2 text-center text-slate-700">{e.exam_score}</td>
+              {!isSeq && <td className="px-3 py-2 text-center text-slate-700">{e.exam_score}</td>}
               <td className="px-3 py-2 text-center text-slate-500">{e.coefficient ?? 1}</td>
-              <td className="px-3 py-2 text-center font-bold text-slate-900">{e.total_score}</td>
+              {!isSeq && <td className="px-3 py-2 text-center font-bold text-slate-900">{e.total_score}</td>}
               <td className={clsx('px-3 py-2 text-center font-bold', gradeColor[e.grade] ?? 'text-slate-700')}>{e.grade}</td>
               <td className="px-3 py-2 text-center text-slate-600 text-xs">{e.remark}</td>
             </tr>
@@ -130,12 +142,21 @@ function PrintCard({ rc }: { rc: RcRecord }) {
         <tfoot>
           <tr className="bg-indigo-50" style={{ borderTop: '2px solid #4f46e5' }}>
             <td className="px-3 py-2 font-bold text-slate-800">
-              {lang === 'fr' ? 'Moyenne générale' : 'Overall Average'}
+              {isSeq ? (lang === 'fr' ? 'Moyenne de la séquence' : 'Sequence Average') : (lang === 'fr' ? 'Moyenne générale' : 'Overall Average')}
             </td>
-            <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.sequence1_average}%</td>
-            <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.sequence2_average}%</td>
-            <td />
-            <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.percentage}%</td>
+            {isSeq ? (
+              <>
+                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.percentage}%</td>
+                <td />
+              </>
+            ) : (
+              <>
+                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.sequence1_average}%</td>
+                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.sequence2_average}%</td>
+                <td />
+                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.percentage}%</td>
+              </>
+            )}
             <td className="px-3 py-2 text-center font-bold text-indigo-700" colSpan={2}>
               {lang === 'fr' ? 'Rang' : 'Rank'}: {rc.class_position ?? '—'}/{rc.out_of ?? '—'}
             </td>
@@ -214,6 +235,8 @@ export default function ReportCards() {
   const [termId,      setTermId]      = useState('');
   const [students,    setStudents]    = useState<Student[]>([]);
   const [reportCards, setReportCards] = useState<RcRecord[]>([]);
+  // 0 = the normal term report card; 1 / 3 / 5 = single-sequence report card (derived from the term's cards)
+  const [sequence,    setSequence]    = useState<0 | SequenceNumber>(0);
   const [loading,     setLoading]     = useState(false);
   const [generating,  setGenerating]  = useState(false);
   const [previewRc,   setPreviewRc]   = useState<RcRecord | null>(null);
@@ -304,7 +327,7 @@ export default function ReportCards() {
     const cards = studentRows.filter(r => r.rc !== null).map(r => r.rc!);
     if (cards.length === 0) return;
 
-    const fname = `report-cards-${(selectedClass?.name ?? 'class').replace(/\s+/g, '-')}-${selectedTerm ? termLabel(selectedTerm) : 'term'}.pdf`.toLowerCase();
+    const fname = `report-cards-${(selectedClass?.name ?? 'class').replace(/\s+/g, '-')}-${sequence ? `sequence-${sequence}` : selectedTerm ? termLabel(selectedTerm) : 'term'}.pdf`.toLowerCase();
 
     // Use the admin-configured PDF template when one is enabled and mapped;
     // otherwise fall back to the built-in hand-drawn layout below.
@@ -365,7 +388,11 @@ export default function ReportCards() {
       doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
-      doc.text(lang === 'fr' ? 'BULLETIN DE NOTES' : 'STUDENT PROGRESS REPORT', X + W / 2, y + 5.2, { align: 'center' });
+      doc.text(
+        rc.sequence
+          ? (lang === 'fr' ? `BULLETIN DE LA SÉQUENCE ${rc.sequence}` : `SEQUENCE ${rc.sequence} PROGRESS REPORT`)
+          : (lang === 'fr' ? 'BULLETIN DE NOTES' : 'STUDENT PROGRESS REPORT'),
+        X + W / 2, y + 5.2, { align: 'center' });
       doc.setTextColor(0, 0, 0);
       y += 12;
 
@@ -378,7 +405,9 @@ export default function ReportCards() {
       ];
       const rightRows: [string, string][] = [
         [lang === 'fr' ? 'Année scolaire' : 'Academic Year', rc.academic_year              ],
-        [lang === 'fr' ? 'Trimestre'       : 'Term',          tLabel(rc.term_name)          ],
+        rc.sequence
+          ? [lang === 'fr' ? 'Période' : 'Period', `${seqLabel(rc.sequence)} (${tLabel(rc.term_name)})`]
+          : [lang === 'fr' ? 'Trimestre'       : 'Term',          tLabel(rc.term_name)          ],
         [lang === 'fr' ? 'Directeur'       : 'Head Teacher',  schoolInfo.headTeacher || ''],
       ];
       leftRows.forEach(([label, val], i) => {
@@ -396,7 +425,39 @@ export default function ReportCards() {
       y += 3 * 5.5 + 6;
 
       // ── Marks table ───────────────────────────────────────────
-      autoTable(doc, {
+      const footCell = { fontStyle: 'bold' as const, halign: 'center' as const, fillColor: [238, 242, 255] as [number, number, number], textColor: [79, 70, 229] as [number, number, number] };
+      if (rc.sequence) {
+        // Single-sequence card: one mark column, no Seq 2 / Total.
+        autoTable(doc, {
+          startY: y,
+          head: [[
+            lang === 'fr' ? 'Matière'      : 'Subject',
+            `${lang === 'fr' ? 'Séq' : 'Seq'} ${rc.sequence} /100`,
+            'Coef.',
+            lang === 'fr' ? 'Mention'      : 'Grade',
+            lang === 'fr' ? 'Appréciation' : 'Remark',
+          ]],
+          body: rc.entries.map(e => [e.subject_name || '', e.ca_score ?? 0, e.coefficient ?? 1, e.grade || '', e.remark || '']),
+          foot: [[
+            { content: lang === 'fr' ? 'Moyenne de la séquence' : 'Sequence Average', styles: { ...footCell, halign: 'left' } },
+            { content: `${rc.percentage}%`, styles: footCell },
+            { content: '', styles: { fillColor: [238, 242, 255] } },
+            { content: `${lang === 'fr' ? 'Rang' : 'Rank'}: ${rc.class_position ?? '—'}/${rc.out_of ?? '—'}`, colSpan: 2, styles: footCell },
+          ]],
+          headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: 'bold', fontSize: 8, halign: 'center' },
+          bodyStyles: { fontSize: 8 },
+          footStyles: { fontSize: 8.5 },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          columnStyles: {
+            0: { cellWidth: 70, halign: 'left' },
+            1: { halign: 'center', cellWidth: 26, fontStyle: 'bold' },
+            2: { halign: 'center', cellWidth: 16 },
+            3: { halign: 'center', cellWidth: 22, fontStyle: 'bold' },
+            4: { halign: 'center' },
+          },
+          margin: { left: X, right: X },
+        });
+      } else autoTable(doc, {
         startY: y,
         head: [[
           lang === 'fr' ? 'Matière'      : 'Subject',
@@ -523,10 +584,31 @@ export default function ReportCards() {
   const selectedClass = classes.find(c => c.id === classId);
   const selectedTerm  = terms.find(tm => tm.id === termId);
 
+  // Single-sequence cards are computed from the term's stored cards (term generation is untouched).
+  const displayCards = useMemo<RcRecord[]>(
+    () => (sequence ? toSequenceCards(reportCards, sequence) : reportCards),
+    [reportCards, sequence],
+  );
+
+  const handleSequenceChange = (n: 0 | SequenceNumber) => {
+    if (n === 0) { setSequence(0); return; }
+    // Sequences 1/3/5 live in terms 1/2/3 of the academic year of the currently selected term.
+    const current = terms.find(tm => tm.id === termId);
+    const target = terms.find(tm => tm.name === SEQUENCE_TERM[n] && tm.academic_year_id === current?.academic_year_id);
+    if (!target) {
+      setGenerateMsg(lang === 'fr' ? 'Erreur : trimestre correspondant introuvable.' : 'Error: matching term not found.');
+      return;
+    }
+    setGenerateMsg('');
+    setSequence(n);
+    setTermId(target.id);
+  };
+  const seqLabel = (n: number) => `${lang === 'fr' ? 'Séquence' : 'Sequence'} ${n}`;
+
   // Merge: one row per student in the class; attach their report card if it exists
   const studentRows = students.map(s => ({
     student: s,
-    rc: reportCards.find(rc => rc.student_id === s.id) ?? null,
+    rc: displayCards.find(rc => rc.student_id === s.id) ?? null,
   }));
 
   return (
@@ -608,12 +690,27 @@ export default function ReportCards() {
               <select
                 value={termId}
                 onChange={e => setTermId(e.target.value)}
-                className="py-2 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                disabled={sequence !== 0}
+                className="py-2 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 disabled:bg-slate-50 disabled:text-slate-500"
               >
                 {terms.map(tm => (
                   <option key={tm.id} value={tm.id}>
                     {termLabel(tm)}{tm.is_current ? ' ✓' : ''}
                   </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">{lang === 'fr' ? 'Type de bulletin' : 'Report type'}</label>
+              <select
+                value={sequence}
+                onChange={e => handleSequenceChange(Number(e.target.value) as 0 | SequenceNumber)}
+                className="py-2 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value={0}>{lang === 'fr' ? 'Bulletin du trimestre' : 'Term report card'}</option>
+                {SEQUENCE_OPTIONS.map(n => (
+                  <option key={n} value={n}>{seqLabel(n)}</option>
                 ))}
               </select>
             </div>
@@ -655,7 +752,7 @@ export default function ReportCards() {
 
           {selectedClass && selectedTerm && (
             <p className="text-xs text-slate-400 mt-2">
-              {selectedClass.name} · {termLabel(selectedTerm)}
+              {selectedClass.name} · {sequence ? `${seqLabel(sequence)} (${termLabel(selectedTerm)})` : termLabel(selectedTerm)}
               {students.length > 0 && ` · ${students.length} ${lang === 'fr' ? 'élèves' : 'students'}`}
               {reportCards.length > 0 && ` · ${reportCards.length} ${lang === 'fr' ? 'bulletins générés' : 'cards generated'}`}
             </p>
@@ -716,7 +813,7 @@ export default function ReportCards() {
                         <h3 className="font-semibold text-slate-800">{rc.student_name}</h3>
                         <p className="text-slate-400 text-xs">{rc.student_number} · {rc.class_name}</p>
                         <p className="text-slate-400 text-xs">
-                          {rc.term_name === 'first'  ? (lang === 'fr' ? 'Trimestre 1' : 'Term 1')
+                          {rc.sequence ? `${seqLabel(rc.sequence)} · ` : ''}{rc.term_name === 'first'  ? (lang === 'fr' ? 'Trimestre 1' : 'Term 1')
                             : rc.term_name === 'second' ? (lang === 'fr' ? 'Trimestre 2' : 'Term 2')
                             : (lang === 'fr' ? 'Trimestre 3' : 'Term 3')} · {rc.academic_year}
                         </p>
@@ -729,7 +826,9 @@ export default function ReportCards() {
                         <p className="text-2xl font-bold text-indigo-600">{rc.percentage}%</p>
                         <p className="text-xs text-slate-400">{lang === 'fr' ? 'Moyenne' : 'Average'}</p>
                         <p className="text-[10px] text-slate-400">
-                          {lang === 'fr' ? 'Séq' : 'Seq'} {(TERM_SEQUENCES[rc.term_name] ?? [1, 2])[0]}: {rc.sequence1_average}% · {lang === 'fr' ? 'Séq' : 'Seq'} {(TERM_SEQUENCES[rc.term_name] ?? [1, 2])[1]}: {rc.sequence2_average}%
+                          {rc.sequence
+                            ? `${lang === 'fr' ? 'Séq' : 'Seq'} ${rc.sequence}: ${rc.sequence1_average}%`
+                            : <>{lang === 'fr' ? 'Séq' : 'Seq'} {(TERM_SEQUENCES[rc.term_name] ?? [1, 2])[0]}: {rc.sequence1_average}% · {lang === 'fr' ? 'Séq' : 'Seq'} {(TERM_SEQUENCES[rc.term_name] ?? [1, 2])[1]}: {rc.sequence2_average}%</>}
                         </p>
                       </div>
                       <div>

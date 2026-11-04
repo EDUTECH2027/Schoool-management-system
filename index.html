@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/veloce-logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>School App</title>
+    <title>VELOCE System</title>
   </head>
   <body>
     <div id="root">
@@ -25,10 +25,10 @@
       (function () {
         var fr = false; try { fr = localStorage.getItem('lang') === 'fr'; } catch (e) {}
         var steps = fr ? [
-          [0, 'Chargement de votre espace…'], [4, 'Préparation de l'application…'],
+          [0, 'Chargement de votre espace…'], [4, 'Préparation de l\'application…'],
           [8, 'Toujours en cours — connexion au serveur…'],
-          [15, 'Cela prend plus de temps que d'habitude. Veuillez garder cette page ouverte.'],
-          [25, 'Presque terminé… si rien n'apparaît, vérifiez votre connexion internet et actualisez la page.']
+          [15, 'Cela prend plus de temps que d\'habitude. Veuillez garder cette page ouverte.'],
+          [25, 'Presque terminé… si rien n\'apparaît, vérifiez votre connexion internet et actualisez la page.']
         ] : [
           [0, 'Loading your workspace…'], [4, 'Preparing the application…'],
           [8, 'Still working — connecting to the server…'],

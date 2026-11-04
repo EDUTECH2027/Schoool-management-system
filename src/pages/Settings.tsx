@@ -5,7 +5,8 @@
  */
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Upload, X, CalendarDays, AlertTriangle, CheckCircle2, BookOpen, Trash2, Plus, Pencil, Check, Download, Database, FileUp, DollarSign, Lock, FileText, Wand2 } from 'lucide-react';
+import { Upload, X, CalendarDays, AlertTriangle, CheckCircle2, BookOpen, Trash2, Plus, Pencil, Check, Download, Database, FileUp, DollarSign, Lock, FileText, Wand2, SlidersHorizontal } from 'lucide-react';
+import { analyzeAndApplyTemplate, ANALYSIS_STEPS, type AnalysisStep, type AnalysisOutcome } from '../utils/reportCardTemplateAnalysis';
 import type { Subject } from '../types';
 import { api, type ClassRecord, type Teacher as TeacherRaw, type AcademicYear, type Term, type MarksSettings } from '../api/client';
 import { parseStudentRows, readXlsxRows, isZipFile, FIELD_LABELS } from '../utils/studentImport';
@@ -13,6 +14,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { useBranding } from '../context/BrandingContext';
 import TwoFactorCard from '../composants/TwoFactorCard';
 import AttendanceQrCard from '../composants/AttendanceQrCard';
+import CoefficientOverridesModal from '../composants/subjects/CoefficientOverridesModal';
 
 interface FeeInstallment {
   label:   string;
@@ -155,6 +157,9 @@ export default function Settings() {
   const [editSubName,  setEditSubName]  = useState('');
   const [editSubCode,  setEditSubCode]  = useState('');
   const [editSubCoeff, setEditSubCoeff] = useState('1');
+  // Per-class coefficient overrides: which subject's editor is open, and how many overrides each subject has.
+  const [coefSubject, setCoefSubject] = useState<Subject | null>(null);
+  const [overrideCounts, setOverrideCounts] = useState<Record<string, number>>({});
 
   // Classes state
   type ClassFormState = { name: string; room: string; capacity: string; teacherId: string };
@@ -188,7 +193,17 @@ export default function Settings() {
   const [rcTemplateHasFields, setRcTemplateHasFields] = useState(false);
   const [rcUploading, setRcUploading] = useState(false);
   const [rcUploadError, setRcUploadError] = useState<string | null>(null);
+  const [rcStep, setRcStep] = useState<AnalysisStep | null>(null);
+  const [rcOutcome, setRcOutcome] = useState<AnalysisOutcome | null>(null);
   const rcFileRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    api.getCoefficientOverrides().then(rows => {
+      const counts: Record<string, number> = {};
+      rows.forEach(r => { counts[r.subjectId] = (counts[r.subjectId] ?? 0) + 1; });
+      setOverrideCounts(counts);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -311,15 +326,31 @@ export default function Settings() {
       return;
     }
     setRcUploading(true);
+    setRcOutcome(null);
+    setRcStep('reading');
     try {
       const updated = await api.uploadReportCardTemplate(file);
       setRcTemplateName(updated.file_name);
       setRcTemplateEnabled(updated.is_enabled);
       setRcTemplateHasFields((updated.fields?.length ?? 0) > 0);
+      // The PDF is stored; now analyse it and pre-place the fields. A failure here must not
+      // lose the upload — the manual designer still works on the stored file.
+      if (updated.file_path) {
+        try {
+          const outcome = await analyzeAndApplyTemplate(updated.file_path, setRcStep);
+          setRcOutcome(outcome);
+          setRcTemplateEnabled(outcome.status === 'enabled');
+          setRcTemplateHasFields(outcome.status !== 'no_text');
+        } catch (err) {
+          console.error('[template analysis]', err);
+          setRcUploadError(lbl('The template was uploaded but could not be analysed automatically. Use the designer to place fields.', 'Le modèle a été téléchargé mais n’a pas pu être analysé automatiquement. Utilisez le concepteur pour placer les champs.'));
+        }
+      }
     } catch (err) {
       console.error(err);
       setRcUploadError(lbl('Upload failed.', 'Échec du téléchargement.'));
     }
+    setRcStep(null);
     setRcUploading(false);
   };
 
@@ -1138,6 +1169,13 @@ export default function Settings() {
                     Coef. {s.coefficient ?? 1}
                   </span>
                   <button
+                    onClick={() => setCoefSubject(s)}
+                    className={`relative p-1.5 rounded-lg transition-colors ${overrideCounts[s.id] ? 'text-violet-600 bg-violet-50' : 'text-slate-400 hover:text-violet-600 hover:bg-violet-50'}`}
+                    title={lang === 'fr' ? `Coefficients par classe${overrideCounts[s.id] ? ` (${overrideCounts[s.id]})` : ''}` : `Coefficients per class${overrideCounts[s.id] ? ` (${overrideCounts[s.id]} set)` : ''}`}
+                  >
+                    <SlidersHorizontal size={14} />
+                  </button>
+                  <button
                     onClick={() => startEdit(s)}
                     className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                     title={t.common.edit}
@@ -1156,6 +1194,14 @@ export default function Settings() {
             </div>
           ))}
         </div>
+
+        {coefSubject && (
+          <CoefficientOverridesModal
+            subject={coefSubject}
+            onClose={() => setCoefSubject(null)}
+            onSaved={count => setOverrideCounts(prev => ({ ...prev, [coefSubject.id]: count }))}
+          />
+        )}
 
         {/* Add new subject */}
         <div className="flex items-center gap-3 p-3 rounded-xl border-2 border-dashed border-slate-200">
@@ -1682,7 +1728,7 @@ export default function Settings() {
             onChange={e => { const f = e.target.files?.[0]; if (f) handleRcTemplateUpload(f); e.target.value = ''; }} />
           <button onClick={() => rcFileRef.current?.click()} disabled={rcUploading}
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-900 disabled:opacity-60 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
-            <Upload size={14} /> {rcUploading ? lbl('Uploading…', 'Téléchargement…') : rcTemplateName ? lbl('Replace PDF', 'Remplacer le PDF') : lbl('Upload PDF', 'Télécharger un PDF')}
+            <Upload size={14} /> {rcUploading ? lbl('Processing…', 'Traitement…') : rcTemplateName ? lbl('Replace PDF', 'Remplacer le PDF') : lbl('Upload PDF', 'Télécharger un PDF')}
           </button>
 
           {rcTemplateName && (
@@ -1695,6 +1741,43 @@ export default function Settings() {
             </>
           )}
         </div>
+
+        {rcStep && (
+          <div className="rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 space-y-1.5" role="status" aria-live="polite">
+            <p className="text-sm font-medium text-indigo-800 flex items-center gap-2">
+              <span className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              {lbl('Analysing your template — please keep this page open…', 'Analyse de votre modèle — veuillez garder cette page ouverte…')}
+            </p>
+            <ul className="text-xs space-y-0.5">
+              {ANALYSIS_STEPS.map((st, i) => {
+                const cur = ANALYSIS_STEPS.indexOf(rcStep);
+                const label: Record<AnalysisStep, string> = {
+                  reading:    lbl('Reading the document', 'Lecture du document'),
+                  layout:     lbl('Analysing layout, tables, borders and text', 'Analyse de la mise en page, des tableaux, bordures et textes'),
+                  mapping:    lbl('Mapping data fields onto the layout', 'Placement des champs de données'),
+                  validating: lbl('Validating with a test report card', 'Validation avec un bulletin de test'),
+                  saving:     lbl('Saving the template', 'Enregistrement du modèle'),
+                };
+                return (
+                  <li key={st} className={i < cur ? 'text-emerald-700' : i === cur ? 'text-indigo-800 font-medium' : 'text-slate-400'}>
+                    {i < cur ? '✓' : i === cur ? '›' : '·'} {label[st]}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+
+        {rcOutcome && !rcStep && (
+          <div className={`text-xs rounded-lg px-3 py-2 space-y-1 ${rcOutcome.status === 'enabled' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+            <p className="font-medium">
+              {rcOutcome.status === 'enabled' && lbl(`Template analysed and validated — ${rcOutcome.detectedLabels} fields and the marks table were placed. Check the preview in the designer if you wish.`, `Modèle analysé et validé — ${rcOutcome.detectedLabels} champs et le tableau des notes ont été placés. Vérifiez l’aperçu dans le concepteur si besoin.`)}
+              {rcOutcome.status === 'needs_review' && lbl('Template analysed, but it failed validation so it was NOT enabled. Open the designer to correct it.', 'Modèle analysé, mais la validation a échoué : il n’a PAS été activé. Ouvrez le concepteur pour le corriger.')}
+              {rcOutcome.status === 'no_text' && lbl('No readable text was found in this PDF (it may be a scanned image). Open the designer to place fields manually.', 'Aucun texte lisible dans ce PDF (image numérisée ?). Ouvrez le concepteur pour placer les champs manuellement.')}
+            </p>
+            {rcOutcome.validation && [...rcOutcome.validation.errors, ...rcOutcome.validation.warnings].map((m, i) => <p key={i}>• {m}</p>)}
+          </div>
+        )}
 
         {rcUploadError && (
           <p className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {rcUploadError}</p>

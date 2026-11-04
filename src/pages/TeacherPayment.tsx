@@ -35,14 +35,18 @@ const getSubject = (r: PayrollRecord): string => {
 };
 
 // ── Static data ────────────────────────────────────────────────────────────
-const MONTHS = [
-  { key: '2026-06', label: 'June 2026'     },
-  { key: '2026-05', label: 'May 2026'      },
-  { key: '2026-04', label: 'April 2026'    },
-  { key: '2026-03', label: 'March 2026'    },
-  { key: '2026-02', label: 'February 2026' },
-  { key: '2026-01', label: 'January 2026'  },
-];
+// Current month first, then the previous 11 (computed from today's date, so it never goes stale).
+const buildMonths = (count = 12) => {
+  const now = new Date();
+  return Array.from({ length: count }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    return {
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+    };
+  });
+};
+const MONTHS = buildMonths();
 
 // ── Status config ──────────────────────────────────────────────────────────
 const statusCfg: Record<string, { label: string; bg: string; dot: string }> = {
@@ -161,7 +165,7 @@ export default function TeacherPayment() {
   const { schoolName, schoolSub } = useBranding() as { schoolName: string; schoolSub: string };
   const lbl = (en: string, fr: string) => lang === 'fr' ? fr : en;
 
-  const [month,   setMonth]   = useState('2026-06');
+  const [month,   setMonth]   = useState(MONTHS[0].key);
   const [payroll, setPayroll] = useState<PayrollRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');

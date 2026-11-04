@@ -46,6 +46,8 @@ export default function Assessments() {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [scores, setScores] = useState<SeqScores>({});
   const [studentsReady, setStudentsReady] = useState(false);
+  // Effective coefficient of each subject in the selected class (class/grade override, else default).
+  const [classCoefs, setClassCoefs] = useState<Record<string, number>>({});
 
   // Load classes + terms + subjects once
   useEffect(() => {
@@ -65,6 +67,11 @@ export default function Assessments() {
       .catch(console.error)
       .finally(() => setLoadingClasses(false));
   }, []);
+
+  useEffect(() => {
+    if (!classId) return;
+    api.getCoefficients(classId).then(setClassCoefs).catch(() => setClassCoefs({}));
+  }, [classId]);
 
   // Load students when classId changes
   useEffect(() => {
@@ -284,7 +291,7 @@ export default function Assessments() {
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">{t.settings.subjectCoefficient}</label>
             <span className="inline-flex items-center h-9 px-3 text-sm font-semibold text-violet-700 bg-violet-50 border border-violet-100 rounded-lg">
-              {subjects.find(s => s.id === subjectId)?.coefficient ?? 1}
+              {classCoefs[subjectId] ?? subjects.find(s => s.id === subjectId)?.coefficient ?? 1}
             </span>
           </div>
           {terms.length > 0 && (

@@ -366,18 +366,20 @@ function ScheduleConfigPanel({
 
 // ── Cell Editor Modal ─────────────────────────────────────────────
 function CellEditorModal({
-  editing, current, classRoom, subjects, teachers, onApply, onClear, onClose,
+  editing, current, classRoom, subjects, teachers, busy, onApply, onClear, onClose,
 }: {
   editing: Editing;
   current: Cell | null;
   classRoom: string;
   subjects: Subject[];
   teachers: Teacher[];
+  busy: Record<string, string>; // teacherId -> class they already teach at this day+period
   onApply: (cell: Cell) => void;
   onClear: () => void;
   onClose: () => void;
 }) {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const lbl = (en: string, fr: string) => lang === 'fr' ? fr : en;
   const [subject,    setSubject]    = useState(current?.subject     ?? '');
   const [teacherId,  setTeacherId]  = useState(current?.teacherId   ?? '');
   const [room,       setRoom]       = useState(current?.room        ?? classRoom);
@@ -423,11 +425,16 @@ function CellEditorModal({
               className="w-full py-2.5 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
               <option value="">— {t.teachers.none} —</option>
               {teachers.filter(tc => tc.isActive).map(tc => (
-                <option key={tc.id} value={tc.id}>
-                  {tc.firstName} {tc.lastName} ({tc.subjects.join(', ')})
+                <option key={tc.id} value={tc.id} disabled={!!busy[tc.id] && tc.id !== teacherId}>
+                  {tc.firstName} {tc.lastName} ({tc.subjects.join(', ')}){busy[tc.id] ? ` — ⛔ ${busy[tc.id]}` : ''}
                 </option>
               ))}
             </select>
+            {teacherId && busy[teacherId] && (
+              <p className="mt-1.5 text-xs text-red-600">
+                {lbl('This teacher is already occupied at this period by', 'Cet enseignant est déjà occupé à cette séance par')} <strong>{busy[teacherId]}</strong>.
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">{t.classes.room}</label>
@@ -446,7 +453,7 @@ function CellEditorModal({
             </button>
             <button
               onClick={() => {
-                if (!subject) return;
+                if (!subject || (teacherId && busy[teacherId])) return;
                 const tc = teachers.find(t => t.id === teacherId);
                 onApply({
                   subject,
@@ -455,7 +462,7 @@ function CellEditorModal({
                   room,
                 });
               }}
-              disabled={!subject}
+              disabled={!subject || !!(teacherId && busy[teacherId])}
               className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg font-medium transition-colors"
             >
               {t.timetable.apply}
@@ -483,6 +490,7 @@ export default function Timetable() {
   const [classId,  setClassId]     = useState('');
   const [editing,  setEditing]     = useState<Editing | null>(null);
   const [saved,    setSaved]       = useState(false);
+  const [saveError, setSaveError]   = useState<string | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
 
   // Track the raw API slots so we can diff on save
@@ -550,6 +558,16 @@ export default function Timetable() {
     setAllGrids(prev => reconcileGrids(prev, next, classes));
   }, [classes]);
 
+  // Teachers already teaching ANOTHER class at the cell being edited (from the saved timetable).
+  const busyTeachers: Record<string, string> = {};
+  if (editing) {
+    apiSlotsRef.current.forEach(s => {
+      if (s.teacher_id && s.class_id !== editing.classId && s.day === editing.day && s.period_key === editing.periodKey) {
+        busyTeachers[s.teacher_id] = s.class_name || classes.find(c => c.id === s.class_id)?.name || '—';
+      }
+    });
+  }
+
   const handleCellClick = (day: string, periodKey: string) => {
     setEditing({
       day, dayLabel: DAY_LABELS[day],
@@ -594,6 +612,7 @@ export default function Timetable() {
 
   const handleSave = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const cfg = schedule;
       const cls = classes.find(c => c.id === classId);
@@ -610,6 +629,25 @@ export default function Timetable() {
           if (cell?.subject) desired.push({ day, periodKey: slot.key, cell, slot });
         });
       });
+
+      // Re-read the saved timetable and refuse BEFORE deleting anything if a chosen teacher is
+      // already teaching another class at the same day+period (someone else may have saved since load).
+      apiSlotsRef.current = await api.getTimetable();
+      for (const d of desired) {
+        const tid = d.cell.teacherId;
+        if (!tid) continue;
+        const clash = apiSlotsRef.current.find(s => s.teacher_id === tid && s.class_id !== classId && s.day === d.day && s.period_key === d.periodKey);
+        if (clash) {
+          const tc = teachers.find(x => x.id === tid);
+          const dayName = DAY_LABELS[d.day] ?? d.day;
+          setSaveError(lbl(
+            `${tc ? tc.firstName + ' ' + tc.lastName : 'This teacher'} is already teaching ${clash.class_name} on ${dayName}, ${getPeriodLabel(d.periodKey)}. Choose another teacher or period.`,
+            `${tc ? tc.firstName + ' ' + tc.lastName : 'Cet enseignant'} enseigne déjà en ${clash.class_name} le ${dayName}, ${getPeriodLabel(d.periodKey)}. Choisissez un autre enseignant ou une autre séance.`,
+          ));
+          setSaving(false);
+          return;
+        }
+      }
 
       // Delete existing API slots for this class
       const existingForClass = apiSlotsRef.current.filter(s => s.class_id === classId);
@@ -655,6 +693,7 @@ export default function Timetable() {
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       console.error('Failed to save timetable:', err);
+      setSaveError(err instanceof Error ? err.message : lbl('Failed to save timetable.', 'Échec de l’enregistrement.'));
     }
     setSaving(false);
   };
@@ -857,6 +896,12 @@ export default function Timetable() {
         </div>
       </div>
 
+      {saveError && (
+        <div role="alert" className="flex items-start gap-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
+          <span aria-hidden>⛔</span><span>{saveError}</span>
+        </div>
+      )}
+
       {/* ── Schedule config panel (collapsible) ─────────────────── */}
       {configOpen && (
         <ScheduleConfigPanel schedule={schedule} onChange={handleScheduleChange} />
@@ -1002,6 +1047,7 @@ export default function Timetable() {
           classRoom={cls?.room ?? ''}
           subjects={subjects}
           teachers={teachers}
+          busy={busyTeachers}
           onApply={applyEdit}
           onClear={clearCell}
           onClose={() => setEditing(null)}

@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Users, BookOpen, GraduationCap,
   ClipboardCheck, FileText, Award, Wallet, Calendar, UserRound, Settings,
   MessageSquare, Megaphone, Mail, MessageCircle, ChevronDown, BadgeDollarSign, ShieldCheck, ArrowDownCircle,
-  Stamp,
+  Stamp, CalendarCheck,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useLanguage } from '../../i18n/LanguageContext';
@@ -44,6 +44,8 @@ export default function Sidebar() {
     { label: t.nav.fees,         to: '/fees',         icon: Wallet           },
     { label: t.nav.timetable,    to: '/timetable',    icon: Calendar         },
     { label: t.nav.parents,      to: '/parents',      icon: UserRound        },
+    // Promotion/repetition and master sheets are administrator-only (also enforced by the API).
+    ...(isAdmin ? [{ label: lang === 'fr' ? 'Clôture de l’année' : 'End of Year', to: '/end-of-year', icon: CalendarCheck }] : []),
   ];
 
   useEffect(() => {
