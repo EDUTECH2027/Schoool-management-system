@@ -4,7 +4,7 @@
  * modification of this file, via any medium, is strictly prohibited.
  */
 import { useEffect, useState } from 'react';
-import { Plus, KeyRound, Trash2, X, RefreshCw } from 'lucide-react';
+import { Plus, KeyRound, Trash2, X, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../api/client';
 import type { PortalUser, CreateUserInput } from '../../api/client';
 
@@ -18,6 +18,8 @@ const ROLE_CHIP: Record<string, string> = {
 
 const BLANK: CreateUserInput = { name: '', email: '', password: '', role: 'teacher', initials: '' };
 
+const PAGE_SIZE = 10;
+
 export default function UserManagement() {
   const [users, setUsers] = useState<PortalUser[]>([]);
   const [showCreate, setShowCreate] = useState(false);
@@ -27,6 +29,13 @@ export default function UserManagement() {
   const [migResult, setMigResult] = useState<string | null>(null);
   const [resetId, setResetId] = useState<string | null>(null);
   const [newPw, setNewPw] = useState('');
+  const [page, setPage] = useState(1);
+
+  // Derived from the full list, so create/delete/reset keep working as before.
+  const totalPages  = Math.max(1, Math.ceil(users.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages); // clamps after a delete empties the last page
+  const pageStart   = (currentPage - 1) * PAGE_SIZE;
+  const pageRows    = users.slice(pageStart, pageStart + PAGE_SIZE);
 
   const load = () => api.getUsers().then(setUsers).catch(() => {});
   useEffect(() => { load(); }, []);
@@ -137,7 +146,7 @@ export default function UserManagement() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-            {users.map(u => (
+            {pageRows.map(u => (
               <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{u.name}</td>
                 <td className="px-4 py-3 text-slate-500">{u.email}</td>
@@ -166,6 +175,27 @@ export default function UserManagement() {
             ))}
           </tbody>
         </table>
+        {users.length > PAGE_SIZE && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-t border-slate-100 dark:border-slate-700 text-sm text-slate-500">
+            <span>{pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, users.length)} of {users.length}</span>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} aria-label="Previous page"
+                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                <ChevronLeft size={15} />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                <button key={n} onClick={() => setPage(n)} aria-current={n === currentPage ? 'page' : undefined}
+                  className={`min-w-8 px-2 py-1 rounded-lg border text-xs font-medium ${n === currentPage ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+                  {n}
+                </button>
+              ))}
+              <button onClick={() => setPage(Math.min(totalPages, currentPage + 1))} disabled={currentPage === totalPages} aria-label="Next page"
+                className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

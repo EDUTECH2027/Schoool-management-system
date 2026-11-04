@@ -4,7 +4,7 @@
  * modification of this file, via any medium, is strictly prohibited.
  */
 import { useState, useEffect } from 'react';
-import { Plus, Mail, Phone, BookOpen, Eye, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Mail, Phone, BookOpen, Eye, Pencil, Trash2, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { Teacher, TeacherAttendance, AttendanceStatus } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
 import TeacherDetailModal from '../composants/teachers/TeacherDetailModal';
@@ -14,8 +14,12 @@ import ConfirmDialog      from '../composants/ui/ConfirmDialog';
 import { api, type CreateTeacherInput } from '../api/client';
 import { mapTeacher } from '../api/mappers';
 
+const CARDS_PREVIEW = 6;   // cards shown before "See more"
+const TABLE_PAGE_SIZE = 10; // staff register rows per page
+
 export default function Teachers() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const lbl = (en: string, fr: string) => lang === 'fr' ? fr : en;
 
   const [teacherList, setTeacherList] = useState<Teacher[]>([]);
   const [selected,          setSelected]          = useState<Teacher | null>(null);
@@ -24,6 +28,8 @@ export default function Teachers() {
   const [editing,   setEditing]       = useState<Teacher | null>(null);
   const [deleting,  setDeleting]      = useState<Teacher | null>(null);
   const [loading,   setLoading]       = useState(true);
+  const [showAllCards, setShowAllCards] = useState(false);
+  const [tablePage,    setTablePage]    = useState(1);
 
   useEffect(() => {
     api.getTeachers()
@@ -86,6 +92,13 @@ export default function Teachers() {
     setDeleting(null);
   };
 
+  // Derived from the full list, so add/edit/delete keep working exactly as before.
+  const visibleCards = showAllCards ? teacherList : teacherList.slice(0, CARDS_PREVIEW);
+  const totalPages   = Math.max(1, Math.ceil(teacherList.length / TABLE_PAGE_SIZE));
+  const currentPage  = Math.min(tablePage, totalPages); // clamps after a delete empties the last page
+  const pageStart    = (currentPage - 1) * TABLE_PAGE_SIZE;
+  const pageRows     = teacherList.slice(pageStart, pageStart + TABLE_PAGE_SIZE);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -118,7 +131,7 @@ export default function Teachers() {
         <>
           {/* Teacher cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {teacherList.map(tc => (
+            {visibleCards.map(tc => (
               <div
                 key={tc.id}
                 onClick={() => open(tc)}
@@ -174,6 +187,19 @@ export default function Teachers() {
             ))}
           </div>
 
+          {teacherList.length > CARDS_PREVIEW && (
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowAllCards(v => !v)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
+              >
+                {showAllCards
+                  ? <><ChevronUp size={15} /> {lbl('See less', 'Voir moins')}</>
+                  : <><ChevronDown size={15} /> {lbl(`See more (${teacherList.length - CARDS_PREVIEW})`, `Voir plus (${teacherList.length - CARDS_PREVIEW})`)}</>}
+              </button>
+            </div>
+          )}
+
           {/* Staff table */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100">
@@ -193,7 +219,7 @@ export default function Teachers() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {teacherList.map(tc => (
+                  {pageRows.map(tc => (
                     <tr
                       key={tc.id}
                       onClick={() => open(tc)}
@@ -247,6 +273,41 @@ export default function Teachers() {
                 </tbody>
               </table>
             </div>
+            {teacherList.length > TABLE_PAGE_SIZE && (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-5 py-3 border-t border-slate-100 text-sm text-slate-500">
+                <span>
+                  {pageStart + 1}–{Math.min(pageStart + TABLE_PAGE_SIZE, teacherList.length)} {lbl('of', 'sur')} {teacherList.length}
+                </span>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => setTablePage(Math.max(1, currentPage - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label={lbl('Previous page', 'Page précédente')}
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setTablePage(n)}
+                      aria-current={n === currentPage ? 'page' : undefined}
+                      className={`min-w-8 px-2 py-1 rounded-lg border text-xs font-medium ${n === currentPage ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-200 hover:bg-slate-50'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => setTablePage(Math.min(totalPages, currentPage + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    aria-label={lbl('Next page', 'Page suivante')}
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </>
       )}

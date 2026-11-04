@@ -59,6 +59,20 @@ function todayDisplay(lang: 'en' | 'fr') {
   return new Date().toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+// GET /students returns only 100 rows by default (sorted by first name), which silently hid
+// students from larger schools. Walk every page (the API caps a page at 500).
+async function fetchAllStudents() {
+  const limit = 500;
+  const first = await api.getStudentsPage({ limit: String(limit), page: '1' });
+  const rows = [...first.data];
+  for (let page = 2; rows.length < first.total; page++) {
+    const next = await api.getStudentsPage({ limit: String(limit), page: String(page) });
+    if (next.data.length === 0) break;
+    rows.push(...next.data);
+  }
+  return rows;
+}
+
 export default function Certificates() {
   const { lang } = useLanguage();
   const lbl = (en: string, fr: string) => lang === 'fr' ? fr : en;
@@ -100,7 +114,7 @@ export default function Certificates() {
   const loadSavedCerts = () => api.getCertificates().then(setSavedCerts).catch(console.error);
 
   useEffect(() => {
-    Promise.all([api.getStudents(), api.getClasses(), api.getYears()])
+    Promise.all([fetchAllStudents(), api.getClasses(), api.getYears()])
       .then(([sts, cls, yrs]) => {
         setStudentList(sts.map(mapStudent));
         setClasses(cls.map(mapClass));
@@ -200,10 +214,15 @@ export default function Certificates() {
     } catch (err) { console.error('Failed to delete certificate:', err); }
   };
 
+  const selectedClassName = classes.find(c => c.id === filterClass)?.name;
+
   const filteredStudents = studentList.filter(s => {
     const name = `${s.firstName} ${s.lastName} ${s.studentNumber}`.toLowerCase();
     const matchSearch = name.includes(search.toLowerCase());
-    const matchClass  = filterClass ? s.classId === filterClass : true;
+    // A student linked to a class only by its name (no class id) still belongs to it.
+    const matchClass  = filterClass
+      ? s.classId === filterClass || (!s.classId && !!selectedClassName && s.className === selectedClassName)
+      : true;
     return matchSearch && matchClass;
   });
 
