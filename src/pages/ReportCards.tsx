@@ -3,14 +3,14 @@
  * Proprietary and confidential. Unauthorized copying, distribution or
  * modification of this file, via any medium, is strictly prohibited.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Printer, Eye, Award, X, RefreshCw, BookOpen, Download } from 'lucide-react';
 import { useBranding } from '../context/BrandingContext';
 import { api, mediaUrl, type ClassRecord, type Student, type AnnualSummary, type ReportCardTemplate } from '../api/client';
 import { useLanguage } from '../i18n/LanguageContext';
 import { StatusBadge } from '../composants/ui/Badge';
 import { clsx } from 'clsx';
-import { fillTemplatePdf, type TemplateField } from '../utils/reportCardTemplate';
+import { fillTemplatePdf, renderPdfPages, type TemplateField } from '../utils/reportCardTemplate';
 import { SEQUENCE_OPTIONS, SEQUENCE_TERM, toSequenceCards, type SequenceNumber } from '../utils/sequenceReportCards';
 
 // Raw DB response types (snake_case)
@@ -243,6 +243,45 @@ export default function ReportCards() {
   const [printList,   setPrintList]   = useState<RcRecord[] | null>(null);
   const [annualSummary, setAnnualSummary] = useState<AnnualSummary | null>(null);
   const [rcTemplate,  setRcTemplate]  = useState<ReportCardTemplate | null>(null);
+  // Template-based preview / print: the uploaded PDF filled with the card's data, rendered to images.
+  const [previewImages, setPreviewImages] = useState<string[] | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [printImages, setPrintImages] = useState<string[] | null>(null);
+  const templateBytesRef = useRef<{ path: string; bytes: ArrayBuffer } | null>(null);
+
+  // Same condition the PDF download already uses: an enabled template that has placed fields.
+  const templateActive = !!(rcTemplate?.is_enabled && rcTemplate.file_path && (rcTemplate.fields?.length ?? 0) > 0);
+
+  // Renders the given cards through the uploaded template; null = use the built-in layout instead.
+  const renderWithTemplate = useCallback(async (cards: RcRecord[]): Promise<string[] | null> => {
+    if (!templateActive || !rcTemplate?.file_path || cards.length === 0) return null;
+    try {
+      if (templateBytesRef.current?.path !== rcTemplate.file_path) {
+        const bytes = await fetch(mediaUrl(rcTemplate.file_path)).then(r => {
+          if (!r.ok) throw new Error(`template fetch failed (${r.status})`);
+          return r.arrayBuffer();
+        });
+        templateBytesRef.current = { path: rcTemplate.file_path, bytes };
+      }
+      const filled = await fillTemplatePdf(templateBytesRef.current.bytes.slice(0), rcTemplate.fields as TemplateField[], cards, schoolInfo, lang);
+      return await renderPdfPages(filled, 1400);
+    } catch (err) {
+      console.error('[report card template preview]', err);
+      return null;
+    }
+  }, [templateActive, rcTemplate, schoolInfo, lang]);
+
+  // Build the preview whenever a card is opened (or the template changes)
+  useEffect(() => {
+    if (!previewRc) { setPreviewImages(null); return; }
+    let cancelled = false;
+    (async () => {
+      setPreviewLoading(true);
+      const images = await renderWithTemplate([previewRc]);
+      if (!cancelled) { setPreviewImages(images); setPreviewLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [previewRc, renderWithTemplate]);
 
   useEffect(() => { api.getReportCardTemplate().then(setRcTemplate).catch(() => {}); }, []);
 
@@ -315,11 +354,16 @@ export default function ReportCards() {
   };
 
   // Print one or many cards
-  const handlePrint = (rcs: RcRecord[]) => {
+  const handlePrint = async (rcs: RcRecord[]) => {
+    // With an active template, print the template-based pages; otherwise the built-in layout.
+    const images = await renderWithTemplate(rcs);
+    if (images) await Promise.all(images.map(src => { const img = new Image(); img.src = src; return img.decode().catch(() => undefined); }));
+    setPrintImages(images);
     setPrintList(rcs);
     setTimeout(() => {
       window.print();
       setPrintList(null);
+      setPrintImages(null);
     }, 300);
   };
 
@@ -616,11 +660,16 @@ export default function ReportCards() {
       {/* Print-only overlay — hidden on screen, shown when window.print() fires */}
       {printList && (
         <div className="print-only">
-          {printList.map((rc, i) => (
-            <div key={rc.id} style={i < printList.length - 1 ? { pageBreakAfter: 'always' } : undefined}>
-              <PrintCard rc={rc} />
-            </div>
-          ))}
+          {printImages
+            ? printImages.map((src, i) => (
+                <img key={i} src={src} alt=""
+                  style={{ display: 'block', width: '100%', maxHeight: '97vh', objectFit: 'contain', ...(i < printImages.length - 1 ? { pageBreakAfter: 'always' } : {}) }} />
+              ))
+            : printList.map((rc, i) => (
+                <div key={rc.id} style={i < printList.length - 1 ? { pageBreakAfter: 'always' } : undefined}>
+                  <PrintCard rc={rc} />
+                </div>
+              ))}
         </div>
       )}
 
@@ -662,7 +711,19 @@ export default function ReportCards() {
               </div>
             </div>
             <div className="overflow-y-auto max-h-[80vh] p-2">
-              <PrintCard rc={previewRc} />
+              {templateActive && previewLoading ? (
+                <div className="flex items-center justify-center py-24">
+                  <div className="w-7 h-7 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : previewImages ? (
+                <div className="space-y-3">
+                  {previewImages.map((src, i) => (
+                    <img key={i} src={src} alt={previewRc.student_name} className="w-full h-auto rounded bg-white shadow-sm" />
+                  ))}
+                </div>
+              ) : (
+                <PrintCard rc={previewRc} />
+              )}
             </div>
           </div>
         </div>

@@ -412,7 +412,7 @@ export default function Login() {
               {schoolName} · {lbl('School Management System', 'Système de Gestion Scolaire')}
             </p>
             <p className="text-center text-[10px] text-slate-300 mt-1">
-              © {new Date().getFullYear()} [VELOCE COMPANY]. {lbl('All rights reserved.', 'Tous droits réservés.')}
+              © {new Date().getFullYear()} VELOCE COMPANY. {lbl('All rights reserved.', 'Tous droits réservés.')}
             </p>
           </div>
         </div>

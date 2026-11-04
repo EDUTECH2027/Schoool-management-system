@@ -30,7 +30,9 @@ export default function TeacherMarks() {
   const [rows, setRows] = useState<MarkRow[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [marksOpen, setMarksOpen] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // sequence number -> may a teacher enter marks for it right now? (admin's per-sequence sessions)
+  const [canEnter, setCanEnter] = useState<Record<number, boolean>>({});
   const [subjectsLoaded, setSubjectsLoaded] = useState(false);
   const [classCoefs, setClassCoefs] = useState<Record<string, number>>({});
 
@@ -44,7 +46,7 @@ export default function TeacherMarks() {
         if (cls[0]) setClassId(cls[0].id);
         if (trm[0]) setTermId(trm[0].id);
         if (subj[0]) { setSubjectId(subj[0].id); setSubjectName(subj[0].name); }
-        if (marksSettings) setMarksOpen(marksSettings.is_open);
+        setCanEnter(Object.fromEntries((marksSettings?.sequences ?? []).map(s => [s.sequence, s.can_enter])));
       }).catch(() => {});
   }, []);
 
@@ -70,13 +72,20 @@ export default function TeacherMarks() {
 
   const currentTerm = terms.find(tm => tm.id === termId);
   const [seq1, seq2] = TERM_SEQUENCES[currentTerm?.name ?? 'first'] ?? [1, 2];
+  const open1 = !!canEnter[seq1];
+  const open2 = !!canEnter[seq2];
+  const openNow = Object.entries(canEnter).filter(([, v]) => v).map(([k]) => Number(k));
 
   const save = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       await api.portalTeacherSaveMarks(classId, termId, rows);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      // e.g. the admin closed this sequence while the teacher was typing
+      setSaveError(err instanceof Error ? err.message : 'Could not save the marks.');
     } finally { setSaving(false); }
   };
 
@@ -84,11 +93,19 @@ export default function TeacherMarks() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Mark Entry</h1>
 
-      {!marksOpen && (
-        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm px-4 py-3 rounded-lg border border-amber-200 dark:border-amber-800">
-          <Lock size={16} className="shrink-0" />
-          The marks filling period is currently closed. Entries are read-only until an admin reopens it.
-        </div>
+      <div className={`flex items-center gap-2 text-sm px-4 py-3 rounded-lg border ${openNow.length
+        ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+        : 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-800'}`}>
+        <Lock size={16} className="shrink-0" />
+        {openNow.length
+          ? <>Open for marks entry: {openNow.sort((a, b) => a - b).map(n => `Sequence ${n}`).join(', ')}. Other sequences are locked.</>
+          : <>No sequence is open for marks entry. Entries are read-only until an admin opens a session.</>}
+      </div>
+
+      {openNow.length > 0 && (!open1 || !open2) && (
+        <p className="text-xs text-slate-500 dark:text-slate-400">
+          For this term: Sequence {seq1} is {open1 ? 'open' : 'closed (read-only)'}, Sequence {seq2} is {open2 ? 'open' : 'closed (read-only)'}.
+        </p>
       )}
 
       {subjectsLoaded && subjects.length === 0 && (
@@ -126,11 +143,11 @@ export default function TeacherMarks() {
                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.student_name}</td>
                 <td className="px-4 py-3 text-slate-500">{row.student_number}</td>
                 <td className="px-4 py-2">
-                  <input type="number" min={0} max={20} step={0.25} value={row.ca_score} disabled={!marksOpen} onChange={e => update(i, 'ca_score', e.target.value)}
+                  <input type="number" min={0} max={20} step={0.25} value={row.ca_score} disabled={!open1} onChange={e => update(i, 'ca_score', e.target.value)}
                     className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </td>
                 <td className="px-4 py-2">
-                  <input type="number" min={0} max={20} step={0.25} value={row.exam_score} disabled={!marksOpen} onChange={e => update(i, 'exam_score', e.target.value)}
+                  <input type="number" min={0} max={20} step={0.25} value={row.exam_score} disabled={!open2} onChange={e => update(i, 'exam_score', e.target.value)}
                     className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </td>
                 <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{Math.round(((row.ca_score + row.exam_score) / 2) * 10) / 10}</td>
@@ -140,10 +157,11 @@ export default function TeacherMarks() {
         </table>
       </div>
 
-      <button onClick={save} disabled={saving || rows.length === 0 || !marksOpen}
+      <button onClick={save} disabled={saving || rows.length === 0 || (!open1 && !open2)}
         className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">
         <Save size={15} /> {saving ? 'Saving…' : saved ? 'Saved!' : 'Save Marks'}
       </button>
+      {saveError && <p role="alert" className="text-sm text-red-600">{saveError}</p>}
     </div>
   );
 }

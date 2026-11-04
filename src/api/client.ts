@@ -224,6 +224,8 @@ export const api = {
   getMarksSettings:    () => request<MarksSettings>('GET', '/marks-settings'),
   updateMarksSettings: (data: { is_enabled: boolean; opens_at: string | null; closes_at: string | null }) =>
     request<MarksSettings>('PUT', '/marks-settings', data),
+  openMarksSession:    (sequence: number) => request<{ sequences: MarksSequenceStatus[] }>('POST', `/marks-settings/sessions/${sequence}/open`),
+  closeMarksSession:   (sequence: number) => request<{ sequences: MarksSequenceStatus[] }>('POST', `/marks-settings/sessions/${sequence}/close`),
 
   // ── Subjects ─────────────────────────────────────────────────────
   getSubjects:    () => cachedGet<Subject[]>('subjects', '/subjects'),
@@ -712,7 +714,8 @@ export interface MasterSheet {
   };
 }
 export interface Term { id: string; academic_year_id: string; name: string; start_date: string; end_date: string; is_current: number; }
-export interface MarksSettings { is_enabled: boolean; opens_at: string | null; closes_at: string | null; is_open: boolean; }
+export interface MarksSequenceStatus { sequence: number; is_open: boolean; can_enter: boolean; opened_at: string | null; closed_at: string | null; }
+export interface MarksSettings { is_enabled: boolean; opens_at: string | null; closes_at: string | null; is_open: boolean; sequences: MarksSequenceStatus[]; }
 export interface GradeLevel { id: string; name: string; sort_order: number; }
 export interface Subject { id: string; name: string; code: string; coefficient: number; }
 export interface CoefficientOverride { id?: string; subjectId: string; classId: string | null; gradeLevelId: string | null; coefficient: number; }

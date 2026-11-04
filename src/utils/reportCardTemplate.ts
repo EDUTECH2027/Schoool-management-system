@@ -195,6 +195,32 @@ export async function renderPdfFirstPage(bytes: ArrayBuffer, targetWidthPx: numb
   };
 }
 
+// Renders EVERY page of a (filled) PDF to PNG data URLs — used to preview/print template-based report cards.
+export async function renderPdfPages(bytes: Uint8Array | ArrayBuffer, targetWidthPx: number): Promise<string[]> {
+  const [pdfjsLib, { default: pdfjsWorkerUrl }] = await Promise.all([
+    import('pdfjs-dist'),
+    import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+  ]);
+  pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
+  // pdf.js takes ownership of the buffer it is given, so hand it a copy.
+  const data = bytes instanceof Uint8Array ? bytes.slice() : new Uint8Array(bytes.slice(0));
+  const pdf = await pdfjsLib.getDocument({ data }).promise;
+  const pages: string[] = [];
+  for (let n = 1; n <= pdf.numPages; n++) {
+    const page = await pdf.getPage(n);
+    const unscaled = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: targetWidthPx / unscaled.width });
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('Canvas not supported');
+    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+    pages.push(canvas.toDataURL('image/png'));
+  }
+  return pages;
+}
+
 // ── Filling the template with real data, one page per student ──────────────
 function cellText(col: TableColumnKey, entry: TemplateEntry): string {
   switch (col) {

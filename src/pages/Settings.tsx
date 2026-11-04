@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 import { Upload, X, CalendarDays, AlertTriangle, CheckCircle2, BookOpen, Trash2, Plus, Pencil, Check, Download, Database, FileUp, DollarSign, Lock, FileText, Wand2, SlidersHorizontal } from 'lucide-react';
 import { analyzeAndApplyTemplate, ANALYSIS_STEPS, type AnalysisStep, type AnalysisOutcome } from '../utils/reportCardTemplateAnalysis';
 import type { Subject } from '../types';
-import { api, type ClassRecord, type Teacher as TeacherRaw, type AcademicYear, type Term, type MarksSettings } from '../api/client';
+import { api, type ClassRecord, type Teacher as TeacherRaw, type AcademicYear, type Term, type MarksSettings, type MarksSequenceStatus } from '../api/client';
 import { parseStudentRows, readXlsxRows, isZipFile, FIELD_LABELS } from '../utils/studentImport';
 import { useLanguage } from '../i18n/LanguageContext';
 import { useBranding } from '../context/BrandingContext';
@@ -187,6 +187,13 @@ export default function Settings() {
   const [marksSaved, setMarksSaved] = useState(false);
   const [marksError, setMarksError] = useState<string | null>(null);
 
+  // Marks filling sessions: each of the six sequences is opened/closed on its own
+  const [marksSessions, setMarksSessions] = useState<MarksSequenceStatus[]>([]);
+  const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
+  const [sessionPick, setSessionPick] = useState('');
+  const [sessionBusy, setSessionBusy] = useState(false);
+  const [sessionError, setSessionError] = useState<string | null>(null);
+
   // Report card PDF template
   const [rcTemplateName, setRcTemplateName] = useState<string | null>(null);
   const [rcTemplateEnabled, setRcTemplateEnabled] = useState(false);
@@ -227,6 +234,7 @@ export default function Settings() {
         setMarksOpensAt(toLocalInput(marks.opens_at));
         setMarksClosesAt(toLocalInput(marks.closes_at));
         setMarksIsOpenNow(marks.is_open);
+        setMarksSessions(marks.sequences ?? []);
       }
       if (rcTemplate) {
         setRcTemplateName(rcTemplate.file_name);
@@ -297,6 +305,35 @@ export default function Settings() {
       setNewTerm(prev => ({ ...prev, name: 'first', start_date: '', end_date: '', is_current: false }));
     } catch (err) { console.error(err); }
     setCalSaving(false);
+  };
+
+  const sequenceName = (n: number) => {
+    const en = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth'][n - 1];
+    const fr = ['Première', 'Deuxième', 'Troisième', 'Quatrième', 'Cinquième', 'Sixième'][n - 1];
+    return lang === 'fr' ? `${fr} séquence` : `${en} Sequence`;
+  };
+  const openSequences = marksSessions.filter(s => s.is_open);
+
+  const confirmOpenSession = async () => {
+    const n = Number(sessionPick);
+    if (!n) return;
+    setSessionBusy(true); setSessionError(null);
+    try {
+      const r = await api.openMarksSession(n);
+      setMarksSessions(r.sequences);
+      setSessionDialogOpen(false); setSessionPick('');
+    } catch (err) {
+      console.error(err);
+      setSessionError(lbl('Could not open the session.', 'Impossible d’ouvrir la session.'));
+    }
+    setSessionBusy(false);
+  };
+
+  const closeSession = async (n: number) => {
+    setSessionBusy(true); setSessionError(null);
+    try { setMarksSessions((await api.closeMarksSession(n)).sequences); }
+    catch (err) { console.error(err); setSessionError(lbl('Could not close the session.', 'Impossible de fermer la session.')); }
+    setSessionBusy(false);
   };
 
   const saveMarksSettings = async () => {
@@ -1654,12 +1691,98 @@ export default function Settings() {
       {/* ── Teacher Attendance QR Code ───────────────────────────── */}
       <AttendanceQrCard />
 
+      {/* ── Marks Filling Sessions (one per sequence) ─────────── */}
+      <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <h3 className="font-semibold text-slate-800 flex items-center gap-2">
+            <Lock size={18} className="text-indigo-500" />
+            {lbl('Marks Filling Sessions', 'Sessions de saisie des notes')}
+          </h3>
+          <button onClick={() => { setSessionPick(''); setSessionError(null); setSessionDialogOpen(true); }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+            {lbl('Open Session', 'Ouvrir une session')}
+          </button>
+        </div>
+
+        <p className="text-sm text-slate-500">
+          {lbl(
+            'Teachers can only enter or change marks for a sequence whose session is open. Each sequence is opened and closed independently — nothing else changes when you open or close one.',
+            'Les enseignants ne peuvent saisir ou modifier les notes que pour une séquence dont la session est ouverte. Chaque séquence est ouverte et fermée indépendamment — rien d’autre ne change.'
+          )}
+        </p>
+
+        <p className={`text-sm font-medium flex items-center gap-1.5 ${openSequences.length ? 'text-emerald-700' : 'text-amber-700'}`}>
+          {openSequences.length
+            ? <><CheckCircle2 size={15} /> {lbl('Currently open:', 'Actuellement ouverte :')} {openSequences.map(s => sequenceName(s.sequence)).join(', ')}</>
+            : <><AlertTriangle size={15} /> {lbl('No sequence is open — teachers cannot enter marks.', 'Aucune séquence n’est ouverte — les enseignants ne peuvent pas saisir de notes.')}</>}
+        </p>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map(n => {
+            const s = marksSessions.find(x => x.sequence === n);
+            const open = !!s?.is_open;
+            return (
+              <div key={n} className={`flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5 ${open ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate">{sequenceName(n)}</p>
+                  <p className={`text-xs ${open ? 'text-emerald-700' : 'text-slate-500'}`}>
+                    {open ? lbl('Open', 'Ouverte') : lbl('Closed', 'Fermée')}
+                    {open && s && !s.can_enter && <span className="text-amber-700"> · {lbl('outside the time window', 'hors de la période')}</span>}
+                  </p>
+                </div>
+                {open && (
+                  <button onClick={() => closeSession(n)} disabled={sessionBusy}
+                    className="text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 px-2.5 py-1.5 rounded-lg transition-colors shrink-0">
+                    {lbl('Close', 'Fermer')}
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {sessionError && !sessionDialogOpen && (
+          <p className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {sessionError}</p>
+        )}
+      </div>
+
+      {sessionDialogOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => !sessionBusy && setSessionDialogOpen(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
+            <h3 className="font-semibold text-slate-800">{lbl('Open a marks-filling session', 'Ouvrir une session de saisie')}</h3>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">{lbl('Which sequence do you want to open?', 'Quelle séquence voulez-vous ouvrir ?')}</label>
+              <select value={sessionPick} onChange={e => setSessionPick(e.target.value)}
+                className="w-full py-2.5 px-3 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                <option value="">— {lbl('Select a sequence', 'Choisir une séquence')} —</option>
+                {[1, 2, 3, 4, 5, 6].map(n => {
+                  const already = !!marksSessions.find(x => x.sequence === n)?.is_open;
+                  return <option key={n} value={n} disabled={already}>{sequenceName(n)}{already ? ` (${lbl('already open', 'déjà ouverte')})` : ''}</option>;
+                })}
+              </select>
+            </div>
+            <p className="text-xs text-slate-500">
+              {lbl('Only this sequence will be opened for teachers. Other sequences are not affected.', 'Seule cette séquence sera ouverte aux enseignants. Les autres ne sont pas affectées.')}
+            </p>
+            {sessionError && <p className="text-sm text-red-600 flex items-center gap-1"><AlertTriangle size={14} /> {sessionError}</p>}
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setSessionDialogOpen(false)} disabled={sessionBusy}
+                className="px-3 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-60">{lbl('Cancel', 'Annuler')}</button>
+              <button onClick={confirmOpenSession} disabled={!sessionPick || sessionBusy}
+                className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg font-medium">
+                {sessionBusy ? lbl('Opening…', 'Ouverture…') : lbl('Confirm', 'Confirmer')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Marks Filling Period ──────────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <h3 className="font-semibold text-slate-800 flex items-center gap-2">
             <Lock size={18} className="text-indigo-500" />
-            {lbl('Marks Filling Period', 'Période de saisie des notes')}
+            {lbl('Marks Filling Time Window (optional)', 'Période de saisie des notes (facultatif)')}
           </h3>
           {marksEnabled && (
             marksIsOpenNow ? (
@@ -1676,8 +1799,8 @@ export default function Settings() {
 
         <p className="text-sm text-slate-500">
           {lbl(
-            'Define the window during which teachers can enter or edit student marks in the teacher portal. Outside this window, the marks entry section becomes read-only for teachers.',
-            'Définissez la période pendant laquelle les enseignants peuvent saisir ou modifier les notes des élèves dans le portail enseignant. En dehors de cette période, la saisie des notes est en lecture seule pour les enseignants.'
+            'Optionally also limit entry to a date window. It applies on top of the sessions above: a sequence is only editable when its session is open AND, if this is enabled, the current time is inside the window.',
+            'Limitez aussi, si vous le souhaitez, la saisie à une période. Elle s’ajoute aux sessions ci-dessus : une séquence n’est modifiable que si sa session est ouverte ET, si cette option est activée, si l’heure actuelle est dans la période.'
           )}
         </p>
 
