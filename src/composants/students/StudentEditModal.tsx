@@ -102,6 +102,12 @@ export default function StudentEditModal({ student, onClose, onSave }: Props) {
             />
           </div>
 
+          <Field
+            label="Student NUI"
+            value={form.studentNui ?? ''}
+            onChange={v => update('studentNui', v)}
+          />
+
           <div className="grid grid-cols-2 gap-4">
             <Field
               label={t.students.dateOfBirth}

@@ -47,6 +47,7 @@ export function mapStudent(s: Raw): Student {
     studentNumber:        s.student_number      ?? s.studentNumber      ?? '',
     firstName:            s.first_name          ?? s.firstName          ?? '',
     middleName:           s.middle_name         ?? s.middleName         ?? undefined,
+    studentNui:           s.student_nui         ?? s.studentNui         ?? undefined,
     lastName:             s.last_name           ?? s.lastName           ?? '',
     dateOfBirth:          s.date_of_birth       ?? s.dateOfBirth        ?? '',
     gender:               (s.gender             ?? 'male') as Student['gender'],

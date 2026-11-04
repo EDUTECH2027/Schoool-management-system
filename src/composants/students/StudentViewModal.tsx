@@ -79,6 +79,7 @@ export default function StudentViewModal({ student, onClose, onEdit }: Props) {
               <InfoRow icon={User} label={t.students.gender}
                 value={student.gender === 'male' ? t.common.male : t.common.female} />
               <InfoRow icon={Hash} label={t.students.admNo} value={student.studentNumber} />
+              {student.studentNui && <InfoRow icon={Hash} label="Student NUI" value={student.studentNui} />}
               <InfoRow icon={Calendar} label={t.students.admissionDate}
                 value={new Date(student.admissionDate).toLocaleDateString('en-GB')} />
             </div>

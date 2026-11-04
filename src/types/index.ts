@@ -97,6 +97,7 @@ export interface Student {
   studentNumber: string;
   firstName: string;
   middleName?: string;
+  studentNui?: string;
   lastName: string;
   dateOfBirth: string;
   gender: Gender;

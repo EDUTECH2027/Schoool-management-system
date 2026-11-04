@@ -31,7 +31,7 @@ interface Props {
 }
 
 const empty = {
-  firstName: '', middleName: '', lastName: '', dateOfBirth: '', gender: 'male' as Gender,
+  firstName: '', middleName: '', lastName: '', studentNui: '', dateOfBirth: '', gender: 'male' as Gender,
   classId: '',
   address: '', city: '', state: '', zipCode: '', mobileNumber: '', alternateMobileNumber: '',
   guardianName: '', guardianPhone: '', guardianRelationship: 'father' as GuardianRel,
@@ -193,7 +193,7 @@ export default function StudentAddModal({ onClose, onAdd, totalExisting, classes
     if (!cls) return;
 
     const input: CreateStudentInput = {
-      firstName: form.firstName.trim(), middleName: form.middleName.trim() || undefined, lastName: form.lastName.trim(),
+      firstName: form.firstName.trim(), middleName: form.middleName.trim() || undefined, lastName: form.lastName.trim(), studentNui: form.studentNui.trim() || undefined,
       dateOfBirth: form.dateOfBirth, gender: form.gender,
       classId: cls.id, className: cls.name, gradeLevelName: cls.gradeLevelName,
       address: form.address.trim(), city: form.city.trim(), state: form.state.trim() || undefined,
@@ -306,6 +306,9 @@ export default function StudentAddModal({ onClose, onAdd, totalExisting, classes
                   <Field label={t.students.firstName} required value={form.firstName} onChange={v => set('firstName', v)} error={errors.firstName} />
                   <Field label={lbl('Middle Name', 'Deuxième prénom')} value={form.middleName} onChange={v => set('middleName', v)} />
                   <Field label={t.students.lastName} required value={form.lastName} onChange={v => set('lastName', v)} error={errors.lastName} />
+                </div>
+                <div className="mt-4">
+                  <Field label="Student NUI" value={form.studentNui} onChange={v => set('studentNui', v)} />
                 </div>
                 <div className="mt-4">
                   <label className="block text-xs font-medium text-slate-600 mb-1.5">
