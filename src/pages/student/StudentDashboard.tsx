@@ -136,14 +136,14 @@ export default function StudentDashboard() {
 
   const latestCard = reportCards[0];
   const prevCard = reportCards[1];
-  const avgScorePct = latestCard ? Math.round(latestCard.percentage) : 0;
-  const avgScoreDelta = latestCard && prevCard ? Math.round(latestCard.percentage - prevCard.percentage) : null;
+  const avgScorePct = latestCard ? Math.round(latestCard.percentage * 10) / 10 : 0;
+  const avgScoreDelta = latestCard && prevCard ? Math.round((latestCard.percentage - prevCard.percentage) * 10) / 10 : null;
   const positionLabel = latestCard ? `${latestCard.class_position ?? '—'}/${latestCard.out_of ?? '—'}` : null;
 
   const subjects = latestCard?.entries ?? [];
-  const excellent = subjects.filter(e => e.total_score >= 80).length;
-  const good = subjects.filter(e => e.total_score >= 50 && e.total_score < 80).length;
-  const needsWork = subjects.filter(e => e.total_score < 50).length;
+  const excellent = subjects.filter(e => e.total_score >= 16).length;
+  const good = subjects.filter(e => e.total_score >= 10 && e.total_score < 16).length;
+  const needsWork = subjects.filter(e => e.total_score < 10).length;
 
   const upcoming = useMemo(() => buildUpcoming(timetable, todayDow, nowMinutes, 3), [timetable, todayDow, nowMinutes]);
 
@@ -172,9 +172,9 @@ export default function StudentDashboard() {
     },
     {
       key: 'score', label: 'Average Score', icon: Award, bg: 'bg-violet-200 dark:bg-violet-500/70',
-      value: `${avgScorePct}%`, delta: avgScoreDelta,
+      value: `${avgScorePct}/20`, delta: avgScoreDelta,
       sub: (positionLabel ? `Class position ${positionLabel}` : 'No report card yet')
-        + (annualSummary?.finalAverage != null ? ` · Annual ${annualSummary.finalAverage}%` : ''),
+        + (annualSummary?.finalAverage != null ? ` · Annual ${annualSummary.finalAverage}/20` : ''),
       to: '/student/marks',
     },
   ];
@@ -212,7 +212,7 @@ export default function StudentDashboard() {
                   {delta !== null && (
                     <span className="inline-flex items-center gap-0.5 bg-white/70 text-slate-900 text-[11px] font-semibold px-1.5 py-0.5 rounded-full">
                       {delta >= 0 ? <ArrowUpRight size={11} className="text-emerald-600" /> : <ArrowDownRight size={11} className="text-red-600" />}
-                      {Math.abs(delta)}%
+                      {Math.abs(delta)}{key === 'score' ? '' : '%'}
                     </span>
                   )}
                 </div>
@@ -247,10 +247,10 @@ export default function StudentDashboard() {
                   <div className="relative flex items-end gap-4 min-w-max px-1" style={{ height: CHART_H }}>
                     <div
                       className="absolute left-0 right-0 border-t border-dashed border-slate-400 dark:border-slate-500 z-10"
-                      style={{ top: CHART_H * (1 - 70 / 100) }}
+                      style={{ top: CHART_H * (1 - 14 / 20) }}
                     >
                       <span className="absolute -top-3 left-0 bg-slate-800 text-white text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap">
-                        Pass mark 70%
+                        Pass mark 14/20
                       </span>
                     </div>
                     {subjects.map(e => {
@@ -261,13 +261,13 @@ export default function StudentDashboard() {
                             <div
                               title={`${e.subject_name} (${prevCard?.term_name ?? 'past'}): ${pastEntry ? Math.round(pastEntry.total_score) : '—'}`}
                               className="w-4 rounded-t bg-slate-300 dark:bg-slate-600"
-                              style={{ height: `${Math.max(pastEntry ? pastEntry.total_score : 0, 2)}%` }}
+                              style={{ height: `${Math.max(pastEntry ? (pastEntry.total_score / 20) * 100 : 0, 2)}%` }}
                             />
                             <div
                               title={`${e.subject_name} (${latestCard?.term_name ?? 'recent'}): ${Math.round(e.total_score)}`}
                               className="w-4 rounded-t bg-rose-300"
                               style={{
-                                height: `${Math.max(e.total_score, 2)}%`,
+                                height: `${Math.max((e.total_score / 20) * 100, 2)}%`,
                                 backgroundImage: 'repeating-linear-gradient(135deg, rgba(255,255,255,.7) 0 3px, transparent 3px 6px)',
                               }}
                             />

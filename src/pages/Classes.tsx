@@ -4,21 +4,28 @@
  * modification of this file, via any medium, is strictly prohibited.
  */
 import { useState, useEffect } from 'react';
-import { Users, BookOpen, Eye, Settings } from 'lucide-react';
+import { Users, BookOpen, Eye, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import type { Class } from '../types';
 import { useLanguage } from '../i18n/LanguageContext';
+import Pagination from '../composants/ui/Pagination';
 import { useNavigate } from 'react-router-dom';
 import ClassDetailModal from '../composants/classes/ClassDetailModal';
 import { api } from '../api/client';
 import { mapClass, mapStudent } from '../api/mappers';
 
+const CARDS_PREVIEW = 6;    // cards shown before "See more"
+const TABLE_PAGE_SIZE = 10; // class details rows per page
+
 export default function Classes() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
+  const lbl = (en: string, fr: string) => lang === 'fr' ? fr : en;
   const navigate = useNavigate();
 
   const [classList, setClassList] = useState<Class[]>([]);
   const [selected,  setSelected]  = useState<Class | null>(null);
   const [loading,   setLoading]   = useState(true);
+  const [showAllCards, setShowAllCards] = useState(false);
+  const [tablePage,    setTablePage]    = useState(1);
 
   useEffect(() => {
     api.getClasses()
@@ -38,6 +45,12 @@ export default function Classes() {
       setSelectedStudents([]);
     }
   };
+
+  // Derived from the full list, so the counts, details modal and refreshes are unaffected.
+  const visibleCards = showAllCards ? classList : classList.slice(0, CARDS_PREVIEW);
+  const totalPages   = Math.max(1, Math.ceil(classList.length / TABLE_PAGE_SIZE));
+  const currentPage  = Math.min(tablePage, totalPages);
+  const pageRows     = classList.slice((currentPage - 1) * TABLE_PAGE_SIZE, currentPage * TABLE_PAGE_SIZE);
 
   if (loading) {
     return (
@@ -73,7 +86,7 @@ export default function Classes() {
         <>
           {/* Class cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {classList.map(cls => {
+            {visibleCards.map(cls => {
               const pct = cls.capacity > 0 ? Math.round((cls.enrolled / cls.capacity) * 100) : 0;
               return (
                 <div
@@ -122,6 +135,19 @@ export default function Classes() {
             })}
           </div>
 
+          {classList.length > CARDS_PREVIEW && (
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowAllCards(v => !v)}
+                className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
+              >
+                {showAllCards
+                  ? <><ChevronUp size={15} /> {lbl('See less', 'Voir moins')}</>
+                  : <><ChevronDown size={15} /> {lbl(`See more (${classList.length - CARDS_PREVIEW})`, `Voir plus (${classList.length - CARDS_PREVIEW})`)}</>}
+              </button>
+            </div>
+          )}
+
           {/* Summary table */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
             <div className="px-5 py-3 border-b border-slate-100">
@@ -141,7 +167,7 @@ export default function Classes() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {classList.map(cls => (
+                  {pageRows.map(cls => (
                     <tr
                       key={cls.id}
                       className="hover:bg-slate-50 cursor-pointer"
@@ -166,6 +192,7 @@ export default function Classes() {
                 </tbody>
               </table>
             </div>
+            <Pagination total={classList.length} page={currentPage} pageSize={TABLE_PAGE_SIZE} onPage={setTablePage} />
           </div>
         </>
       )}

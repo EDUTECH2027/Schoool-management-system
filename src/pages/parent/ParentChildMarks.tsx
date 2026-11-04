@@ -24,7 +24,7 @@ export default function ParentChildMarks() {
     api.portalParentChildMarks(studentId, termId).then(setMarks).catch(() => {});
   }, [termId, studentId]);
 
-  const avg = marks.length ? Math.round(marks.reduce((s, m) => s + m.total_score, 0) / marks.length) : null;
+  const avg = marks.length ? Math.round((marks.reduce((s, m) => s + m.total_score, 0) / marks.length) * 10) / 10 : null;
 
   return (
     <div className="space-y-4">
@@ -39,7 +39,7 @@ export default function ParentChildMarks() {
 
       {avg !== null && (
         <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800 rounded-xl p-4">
-          <p className="text-2xl font-bold text-violet-600">{avg}% Overall Average</p>
+          <p className="text-2xl font-bold text-violet-600">{avg}/20 Overall Average</p>
           <p className="text-sm text-violet-600 dark:text-violet-400">{marks.length} subjects</p>
         </div>
       )}

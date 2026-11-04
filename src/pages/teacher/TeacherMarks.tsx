@@ -11,7 +11,7 @@ import type { ClassRecord, Student, Mark, Term, Subject } from '../../api/client
 interface MarkRow { student_id: string; student_name: string; student_number: string; subject_id: string; subject_name: string; ca_score: number; exam_score: number; }
 
 // Sequences for each term name — matches the admin Assessments page exactly:
-// each term has two sequences, both scored out of 100.
+// each term has two sequences, both scored out of 20.
 const TERM_SEQUENCES: Record<string, [number, number]> = {
   first: [1, 2],
   second: [3, 4],
@@ -63,7 +63,7 @@ export default function TeacherMarks() {
   }, [classId, termId, subjectId, subjectName, students]);
 
   const update = (idx: number, field: 'ca_score' | 'exam_score', val: string) => {
-    setRows(r => r.map((row, i) => i === idx ? { ...row, [field]: Math.min(100, Math.max(0, Number(val) || 0)) } : row));
+    setRows(r => r.map((row, i) => i === idx ? { ...row, [field]: Math.min(20, Math.max(0, Number(val) || 0)) } : row));
   };
 
   const currentTerm = terms.find(tm => tm.id === termId);
@@ -106,7 +106,7 @@ export default function TeacherMarks() {
         <table className="w-full text-sm">
           <thead className="bg-slate-50 dark:bg-slate-700/50">
             <tr>
-              {['Student', 'No.', `Sequence ${seq1} /100`, `Sequence ${seq2} /100`, 'Total /100'].map(h => (
+              {['Student', 'No.', `Sequence ${seq1} /20`, `Sequence ${seq2} /20`, 'Total /20'].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -117,14 +117,14 @@ export default function TeacherMarks() {
                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{row.student_name}</td>
                 <td className="px-4 py-3 text-slate-500">{row.student_number}</td>
                 <td className="px-4 py-2">
-                  <input type="number" min={0} max={100} value={row.ca_score} disabled={!marksOpen} onChange={e => update(i, 'ca_score', e.target.value)}
+                  <input type="number" min={0} max={20} step={0.25} value={row.ca_score} disabled={!marksOpen} onChange={e => update(i, 'ca_score', e.target.value)}
                     className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </td>
                 <td className="px-4 py-2">
-                  <input type="number" min={0} max={100} value={row.exam_score} disabled={!marksOpen} onChange={e => update(i, 'exam_score', e.target.value)}
+                  <input type="number" min={0} max={20} step={0.25} value={row.exam_score} disabled={!marksOpen} onChange={e => update(i, 'exam_score', e.target.value)}
                     className="w-20 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 disabled:opacity-60 disabled:cursor-not-allowed" />
                 </td>
-                <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{Math.round((row.ca_score + row.exam_score) / 2)}</td>
+                <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{Math.round(((row.ca_score + row.exam_score) / 2) * 10) / 10}</td>
               </tr>
             ))}
           </tbody>

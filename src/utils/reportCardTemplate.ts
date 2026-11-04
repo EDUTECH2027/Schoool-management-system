@@ -147,9 +147,9 @@ export function resolveSimpleValue(key: SimpleFieldKey, rc: TemplateReportCard, 
     case 'class_name':            return rc.class_name || '';
     case 'academic_year':         return rc.academic_year || '';
     case 'term_label':            return termLabelOf(rc.term_name, lang, rc.sequence);
-    case 'percentage':            return `${rc.percentage ?? 0}%`;
-    case 'sequence1_average':     return `${rc.sequence1_average ?? 0}%`;
-    case 'sequence2_average':     return rc.sequence ? '' : `${rc.sequence2_average ?? 0}%`;
+    case 'percentage':            return `${rc.percentage ?? 0}/20`;
+    case 'sequence1_average':     return `${rc.sequence1_average ?? 0}/20`;
+    case 'sequence2_average':     return rc.sequence ? '' : `${rc.sequence2_average ?? 0}/20`;
     case 'class_position':        return `${rc.class_position ?? '—'}/${rc.out_of ?? '—'}`;
     case 'conduct':                return rc.conduct || '—';
     case 'attendance': {

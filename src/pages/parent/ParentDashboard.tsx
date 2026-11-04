@@ -124,7 +124,7 @@ export default function ParentDashboard() {
 
   const attPct = attThis.length ? Math.round((attThis.filter(a => a.status === 'present').length / attThis.length) * 100) : null;
   const latestCard = reportCards[0];
-  const avgPct = latestCard ? Math.round(latestCard.percentage) : null;
+  const avgPct = latestCard ? Math.round(latestCard.percentage * 10) / 10 : null;
   const posLabel = latestCard ? `${latestCard.class_position ?? '—'}/${latestCard.out_of ?? '—'}` : null;
   const positiveBehavior = behavior.filter(b => b.category === 'positive').length;
   const negativeBehavior = behavior.filter(b => b.category === 'negative').length;
@@ -142,7 +142,7 @@ export default function ParentDashboard() {
     {
       key: 'average', label: 'Average',
       sub: (posLabel ? `Position ${posLabel}` : 'All grades')
-        + (annualSummary?.finalAverage != null ? ` · Annual ${annualSummary.finalAverage}%` : ''),
+        + (annualSummary?.finalAverage != null ? ` · Annual ${annualSummary.finalAverage}/20` : ''),
       value: avgPct, bar: 'bg-indigo-500', to: `/parent/children/${selectedId}/marks`,
     },
     { key: 'attendance', label: 'Attendance', sub: 'This month', value: attPct, bar: 'bg-sky-500', to: `/parent/children/${selectedId}/attendance` },
@@ -282,7 +282,7 @@ export default function ParentDashboard() {
                       <p className="text-xs text-slate-400">{sub}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value !== null ? `${value}%` : '—'}</span>
+                      <span className="text-2xl font-bold text-slate-800 dark:text-slate-100">{value !== null ? `${value}${key === 'average' ? '/20' : '%'}` : '—'}</span>
                       <span className={`w-1.5 h-9 rounded-full ${bar}`} />
                     </div>
                   </Link>
@@ -305,14 +305,14 @@ export default function ParentDashboard() {
                       <span className="w-8" />
                     </div>
                     {recentMarks.map(m => {
-                      const passed = m.total_score >= 50;
+                      const passed = m.total_score >= 10;
                       return (
                         <div key={m.id} className="grid grid-cols-[1fr_auto_auto] gap-3 items-center py-2.5 border-b border-slate-50 dark:border-slate-700/60 last:border-0">
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{m.subject_name}</p>
                             <p className="text-xs text-slate-400 truncate">{teacherBySubject.get(m.subject_name) ?? m.remark ?? '—'}</p>
                           </div>
-                          <span className="w-14 text-right text-sm font-semibold text-slate-700 dark:text-slate-200">{Math.round(m.total_score)}%</span>
+                          <span className="w-14 text-right text-sm font-semibold text-slate-700 dark:text-slate-200">{Math.round(m.total_score * 10) / 10}/20</span>
                           <span className="w-8 flex justify-center">
                             {passed ? <CheckCircle2 size={17} className="text-emerald-500" /> : <Circle size={17} className="text-slate-300 dark:text-slate-600" />}
                           </span>

@@ -127,11 +127,11 @@ export default function Assessments() {
   };
 
   const getGrade = (total: number): { grade: string; remark: string } => {
-    if (total >= 90) return { grade: 'A+', remark: lang === 'fr' ? 'Excellent'   : 'Excellent'   };
-    if (total >= 80) return { grade: 'A',  remark: lang === 'fr' ? 'Très bien'   : 'Very Good'   };
-    if (total >= 70) return { grade: 'B',  remark: lang === 'fr' ? 'Bien'        : 'Good'        };
-    if (total >= 60) return { grade: 'C',  remark: lang === 'fr' ? 'Assez bien'  : 'Average'     };
-    if (total >= 50) return { grade: 'D',  remark: lang === 'fr' ? 'Insuffisant' : 'Below Avg'   };
+    if (total >= 18) return { grade: 'A+', remark: lang === 'fr' ? 'Excellent'   : 'Excellent'   };
+    if (total >= 16) return { grade: 'A',  remark: lang === 'fr' ? 'Très bien'   : 'Very Good'   };
+    if (total >= 14) return { grade: 'B',  remark: lang === 'fr' ? 'Bien'        : 'Good'        };
+    if (total >= 12) return { grade: 'C',  remark: lang === 'fr' ? 'Assez bien'  : 'Average'     };
+    if (total >= 10) return { grade: 'D',  remark: lang === 'fr' ? 'Insuffisant' : 'Below Avg'   };
     return              { grade: 'F',  remark: lang === 'fr' ? 'Échec'       : 'Fail'        };
   };
 
@@ -139,19 +139,19 @@ export default function Assessments() {
     const seq1  = parseFloat(scores[s.id]?.seq1 ?? '') || 0;
     const seq2  = parseFloat(scores[s.id]?.seq2 ?? '') || 0;
     const hasAny = (scores[s.id]?.seq1 ?? '') !== '' || (scores[s.id]?.seq2 ?? '') !== '';
-    const total  = hasAny ? Math.round((seq1 + seq2) / 2) : 0;
+    const total  = hasAny ? Math.round(((seq1 + seq2) / 2) * 10) / 10 : 0;
     const { grade, remark } = getGrade(total);
     return { ...s, seq1, seq2, total, grade, remark, hasAny };
   });
 
   const visibleRows = filter === 'passed'
-    ? rows.filter(r => r.hasAny && r.total >= 50)
+    ? rows.filter(r => r.hasAny && r.total >= 10)
     : filter === 'failed'
-    ? rows.filter(r => r.hasAny && r.total < 50)
+    ? rows.filter(r => r.hasAny && r.total < 10)
     : rows;
 
   const classAvg = rows.length
-    ? Math.round(rows.reduce((sum, r) => sum + r.total, 0) / rows.length)
+    ? Math.round((rows.reduce((sum, r) => sum + r.total, 0) / rows.length) * 10) / 10
     : 0;
 
   const className   = classes.find(c => c.id === classId)?.name ?? '';
@@ -165,11 +165,11 @@ export default function Assessments() {
       : `Term ${n} (Seq ${a}-${b})`;
   };
 
-  const seq1Header = lang === 'fr' ? `Séq ${s1} /100` : `Seq ${s1} /100`;
-  const seq2Header = lang === 'fr' ? `Séq ${s2} /100` : `Seq ${s2} /100`;
+  const seq1Header = lang === 'fr' ? `Séq ${s1} /20` : `Seq ${s1} /20`;
+  const seq2Header = lang === 'fr' ? `Séq ${s2} /20` : `Seq ${s2} /20`;
   const formulaHint = lang === 'fr'
-    ? `Moy. Séq ${s1} & Séq ${s2} = Total /100`
-    : `Avg of Seq ${s1} & Seq ${s2} = Total /100`;
+    ? `Moy. Séq ${s1} & Séq ${s2} = Total /20`
+    : `Avg of Seq ${s1} & Seq ${s2} = Total /20`;
 
   const handleSave = async () => {
     if (!classId || !subjectId) return;
@@ -180,7 +180,7 @@ export default function Assessments() {
       .map(s => {
         const seq1 = parseFloat(scores[s.id]?.seq1 ?? '') || 0;
         const seq2 = parseFloat(scores[s.id]?.seq2 ?? '') || 0;
-        const total = Math.round((seq1 + seq2) / 2);
+        const total = Math.round(((seq1 + seq2) / 2) * 10) / 10;
         const { grade, remark } = getGrade(total);
         return {
           studentId:     s.id,
@@ -345,7 +345,7 @@ export default function Assessments() {
         >
           <div className={`absolute -right-3 -top-3 w-16 h-16 rounded-full opacity-10 ${filter === 'passed' ? 'bg-white' : 'bg-emerald-400'}`} />
           <CheckCircle2 size={20} className={`mb-2 transition-colors ${filter === 'passed' ? 'text-emerald-100' : 'text-emerald-500 group-hover:text-emerald-600'}`} />
-          <p className={`text-2xl font-bold transition-colors ${filter === 'passed' ? 'text-white' : 'text-emerald-600'}`}>{rows.filter(r => r.hasAny && r.total >= 50).length}</p>
+          <p className={`text-2xl font-bold transition-colors ${filter === 'passed' ? 'text-white' : 'text-emerald-600'}`}>{rows.filter(r => r.hasAny && r.total >= 10).length}</p>
           <p className={`text-sm mt-0.5 transition-colors ${filter === 'passed' ? 'text-emerald-100' : 'text-slate-500'}`}>{t.assessments.passed}</p>
         </div>
 
@@ -359,7 +359,7 @@ export default function Assessments() {
         >
           <div className={`absolute -right-3 -top-3 w-16 h-16 rounded-full opacity-10 ${filter === 'failed' ? 'bg-white' : 'bg-red-400'}`} />
           <XCircle size={20} className={`mb-2 transition-colors ${filter === 'failed' ? 'text-red-100' : 'text-red-400 group-hover:text-red-500'}`} />
-          <p className={`text-2xl font-bold transition-colors ${filter === 'failed' ? 'text-white' : 'text-red-500'}`}>{rows.filter(r => r.hasAny && r.total < 50).length}</p>
+          <p className={`text-2xl font-bold transition-colors ${filter === 'failed' ? 'text-white' : 'text-red-500'}`}>{rows.filter(r => r.hasAny && r.total < 10).length}</p>
           <p className={`text-sm mt-0.5 transition-colors ${filter === 'failed' ? 'text-red-100' : 'text-slate-500'}`}>{t.assessments.failed}</p>
         </div>
       </div>
@@ -411,7 +411,7 @@ export default function Assessments() {
                     </td>
                     <td className="px-5 py-3 text-center">
                       <input
-                        type="number" min="0" max="100"
+                        type="number" min="0" max="20" step="0.25"
                         value={scores[s.id]?.seq1 ?? ''}
                         onChange={e => updateScore(s.id, 'seq1', e.target.value)}
                         className="w-16 text-center py-1 px-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
@@ -420,7 +420,7 @@ export default function Assessments() {
                     </td>
                     <td className="px-5 py-3 text-center">
                       <input
-                        type="number" min="0" max="100"
+                        type="number" min="0" max="20" step="0.25"
                         value={scores[s.id]?.seq2 ?? ''}
                         onChange={e => updateScore(s.id, 'seq2', e.target.value)}
                         className="w-16 text-center py-1 px-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"

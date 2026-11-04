@@ -4,6 +4,7 @@
  * modification of this file, via any medium, is strictly prohibited.
  */
 import { useState, useEffect, useRef } from 'react';
+import { fetchAllStudents } from '../utils/fetchAllStudents';
 import type { Editor } from '@tiptap/react';
 import {
   Search, Printer, FileBadge, Stamp, Save, CheckCircle, FolderOpen, Trash2,
@@ -57,20 +58,6 @@ function genCertNumber() {
 
 function todayDisplay(lang: 'en' | 'fr') {
   return new Date().toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB', { year: 'numeric', month: 'long', day: 'numeric' });
-}
-
-// GET /students returns only 100 rows by default (sorted by first name), which silently hid
-// students from larger schools. Walk every page (the API caps a page at 500).
-async function fetchAllStudents() {
-  const limit = 500;
-  const first = await api.getStudentsPage({ limit: String(limit), page: '1' });
-  const rows = [...first.data];
-  for (let page = 2; rows.length < first.total; page++) {
-    const next = await api.getStudentsPage({ limit: String(limit), page: String(page) });
-    if (next.data.length === 0) break;
-    rows.push(...next.data);
-  }
-  return rows;
 }
 
 export default function Certificates() {

@@ -226,8 +226,8 @@ export default function EndOfYear() {
             <div className={card}>
               <h3 className="font-semibold text-slate-800 dark:text-slate-100 mb-3">{L('Promotion rules', 'Règles de passage')}</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
-                <label className="text-xs text-slate-500 space-y-1">{L('Minimum annual average to be promoted (/100)', 'Moyenne annuelle minimale pour passer (/100)')}
-                  <input type="number" min={0} max={100} step={0.5} className={select} value={config.passAverage}
+                <label className="text-xs text-slate-500 space-y-1">{L('Minimum annual average to be promoted (/20)', 'Moyenne annuelle minimale pour passer (/20)')}
+                  <input type="number" min={0} max={20} step={0.5} className={select} value={config.passAverage}
                     onChange={(e) => setConfig({ ...config, passAverage: Number(e.target.value) })} />
                 </label>
                 <label className="text-xs text-slate-500 space-y-1">{L('Students promoted from the last class', 'Élèves admis de la dernière classe')}
@@ -309,7 +309,7 @@ export default function EndOfYear() {
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="font-semibold text-slate-800 dark:text-slate-100">{L('Review and validate decisions', 'Examiner et valider les décisions')}</h2>
-              <p className="text-sm text-slate-500">{cls?.name} · {year?.label} · {L('pass mark', 'seuil')} {decisions?.passAverage ?? config.passAverage}/100 · {validatedCount}/{decisions?.rows.length ?? 0} {L('validated', 'validés')}</p>
+              <p className="text-sm text-slate-500">{cls?.name} · {year?.label} · {L('pass mark', 'seuil')} {decisions?.passAverage ?? config.passAverage}/20 · {validatedCount}/{decisions?.rows.length ?? 0} {L('validated', 'validés')}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <select className={clsx(select, 'w-auto')} value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)}>

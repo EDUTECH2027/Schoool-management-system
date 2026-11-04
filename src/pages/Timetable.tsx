@@ -559,16 +559,17 @@ export default function Timetable() {
   }, [classes]);
 
   // Teachers already teaching ANOTHER class at the cell being edited (from the saved timetable).
-  const busyTeachers: Record<string, string> = {};
-  if (editing) {
-    apiSlotsRef.current.forEach(s => {
-      if (s.teacher_id && s.class_id !== editing.classId && s.day === editing.day && s.period_key === editing.periodKey) {
-        busyTeachers[s.teacher_id] = s.class_name || classes.find(c => c.id === s.class_id)?.name || '—';
-      }
-    });
-  }
+  // Computed when a cell is opened (not during render) because the slots live in a ref.
+  const [busyTeachers, setBusyTeachers] = useState<Record<string, string>>({});
 
   const handleCellClick = (day: string, periodKey: string) => {
+    const busy: Record<string, string> = {};
+    apiSlotsRef.current.forEach(s => {
+      if (s.teacher_id && s.class_id !== classId && s.day === day && s.period_key === periodKey) {
+        busy[s.teacher_id] = s.class_name || classes.find(c => c.id === s.class_id)?.name || '—';
+      }
+    });
+    setBusyTeachers(busy);
     setEditing({
       day, dayLabel: DAY_LABELS[day],
       periodKey, periodLabel: getPeriodLabel(periodKey),

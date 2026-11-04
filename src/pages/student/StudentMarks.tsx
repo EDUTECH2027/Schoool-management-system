@@ -25,7 +25,7 @@ export default function StudentMarks() {
     api.portalStudentMarks(termId).then(setMarks).catch(() => {});
   }, [termId]);
 
-  const avg = marks.length ? Math.round(marks.reduce((s, m) => s + m.total_score, 0) / marks.length) : null;
+  const avg = marks.length ? Math.round((marks.reduce((s, m) => s + m.total_score, 0) / marks.length) * 10) / 10 : null;
 
   return (
     <div className="space-y-4">
@@ -40,7 +40,7 @@ export default function StudentMarks() {
       {avg !== null && (
         <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 flex items-center gap-4">
           <div className="text-center">
-            <p className="text-3xl font-bold text-emerald-600">{avg}%</p>
+            <p className="text-3xl font-bold text-emerald-600">{avg}/20</p>
             <p className="text-xs text-emerald-600">Overall Average</p>
           </div>
           <div className="text-sm text-emerald-700 dark:text-emerald-400">

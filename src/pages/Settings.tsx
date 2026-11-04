@@ -701,12 +701,12 @@ export default function Settings() {
   ));
 
   const gradingScale = [
-    { grade: 'A+', min: 90, max: 100, remarkEn: 'Excellent',     remarkFr: 'Excellent'   },
-    { grade: 'A',  min: 80, max: 89,  remarkEn: 'Very Good',     remarkFr: 'Très bien'   },
-    { grade: 'B',  min: 70, max: 79,  remarkEn: 'Good',          remarkFr: 'Bien'        },
-    { grade: 'C',  min: 60, max: 69,  remarkEn: 'Average',       remarkFr: 'Assez bien'  },
-    { grade: 'D',  min: 50, max: 59,  remarkEn: 'Below Average', remarkFr: 'Insuffisant' },
-    { grade: 'F',  min: 0,  max: 49,  remarkEn: 'Fail',          remarkFr: 'Échec'       },
+    { grade: 'A+', min: 18, max: 20,   remarkEn: 'Excellent',     remarkFr: 'Excellent'   },
+    { grade: 'A',  min: 16, max: 17.9, remarkEn: 'Very Good',     remarkFr: 'Très bien'   },
+    { grade: 'B',  min: 14, max: 15.9, remarkEn: 'Good',          remarkFr: 'Bien'        },
+    { grade: 'C',  min: 12, max: 13.9, remarkEn: 'Average',       remarkFr: 'Assez bien'  },
+    { grade: 'D',  min: 10, max: 11.9, remarkEn: 'Below Average', remarkFr: 'Insuffisant' },
+    { grade: 'F',  min: 0,  max: 9.9,  remarkEn: 'Fail',          remarkFr: 'Échec'       },
   ];
 
   return (
@@ -1822,7 +1822,7 @@ export default function Settings() {
                     <input
                       defaultValue={g.min}
                       type="number"
-                      min={0} max={100}
+                      min={0} max={20}
                       className="w-24 py-1.5 px-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </td>
@@ -1830,7 +1830,7 @@ export default function Settings() {
                     <input
                       defaultValue={g.max}
                       type="number"
-                      min={0} max={100}
+                      min={0} max={20}
                       className="w-24 py-1.5 px-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </td>

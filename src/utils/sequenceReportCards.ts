@@ -19,13 +19,13 @@ export const SEQUENCE_TERM: Record<SequenceNumber, 'first' | 'second' | 'third'>
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-// Mirrors backend/src/utils/grading.js (letter bands on the 0–100 scale).
+// Mirrors backend/src/utils/grading.js (letter bands on the 0–20 scale).
 export function gradeFor(score: number): { grade: string; remark: string } {
-  if (score >= 90) return { grade: 'A+', remark: 'Excellent' };
-  if (score >= 80) return { grade: 'A',  remark: 'Very Good' };
-  if (score >= 70) return { grade: 'B',  remark: 'Good' };
-  if (score >= 60) return { grade: 'C',  remark: 'Average' };
-  if (score >= 50) return { grade: 'D',  remark: 'Below Average' };
+  if (score >= 18) return { grade: 'A+', remark: 'Excellent' };
+  if (score >= 16) return { grade: 'A',  remark: 'Very Good' };
+  if (score >= 14) return { grade: 'B',  remark: 'Good' };
+  if (score >= 12) return { grade: 'C',  remark: 'Average' };
+  if (score >= 10) return { grade: 'D',  remark: 'Below Average' };
   return { grade: 'F', remark: 'Fail' };
 }
 
@@ -60,7 +60,7 @@ export function toSequenceCards<E extends SeqEntry, C extends SeqCard<E>>(cards:
       sequence,
       percentage: avg, sequence1_average: avg, sequence2_average: 0,
       total_marks_obtained: entries.reduce((s, e) => s + e.total_score, 0),
-      total_marks_possible: entries.length * 100,
+      total_marks_possible: entries.length * 20,
       class_position: rankOf(avg),
       out_of: c.out_of ?? cards.length,
     };

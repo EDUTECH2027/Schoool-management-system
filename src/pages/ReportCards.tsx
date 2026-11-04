@@ -113,15 +113,15 @@ function PrintCard({ rc }: { rc: RcRecord }) {
           <tr className="bg-slate-800 text-white">
             <th className="text-left px-3 py-2 font-semibold">{lang === 'fr' ? 'Matière' : 'Subject'}</th>
             {isSeq ? (
-              <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? `Séq ${rc.sequence} /100` : `Seq ${rc.sequence} /100`}</th>
+              <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? `Séq ${rc.sequence} /20` : `Seq ${rc.sequence} /20`}</th>
             ) : (
               <>
-                <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Séq 1 /100' : 'Seq 1 /100'}</th>
-                <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Séq 2 /100' : 'Seq 2 /100'}</th>
+                <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Séq 1 /20' : 'Seq 1 /20'}</th>
+                <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Séq 2 /20' : 'Seq 2 /20'}</th>
               </>
             )}
             <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Coef.' : 'Coef.'}</th>
-            {!isSeq && <th className="text-center px-3 py-2 font-semibold">Total /100</th>}
+            {!isSeq && <th className="text-center px-3 py-2 font-semibold">Total /20</th>}
             <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Mention' : 'Grade'}</th>
             <th className="text-center px-3 py-2 font-semibold">{lang === 'fr' ? 'Appréciation' : 'Remark'}</th>
           </tr>
@@ -146,15 +146,15 @@ function PrintCard({ rc }: { rc: RcRecord }) {
             </td>
             {isSeq ? (
               <>
-                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.percentage}%</td>
+                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.percentage}/20</td>
                 <td />
               </>
             ) : (
               <>
-                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.sequence1_average}%</td>
-                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.sequence2_average}%</td>
+                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.sequence1_average}/20</td>
+                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.sequence2_average}/20</td>
                 <td />
-                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.percentage}%</td>
+                <td className="px-3 py-2 text-center font-bold text-indigo-700">{rc.percentage}/20</td>
               </>
             )}
             <td className="px-3 py-2 text-center font-bold text-indigo-700" colSpan={2}>
@@ -432,7 +432,7 @@ export default function ReportCards() {
           startY: y,
           head: [[
             lang === 'fr' ? 'Matière'      : 'Subject',
-            `${lang === 'fr' ? 'Séq' : 'Seq'} ${rc.sequence} /100`,
+            `${lang === 'fr' ? 'Séq' : 'Seq'} ${rc.sequence} /20`,
             'Coef.',
             lang === 'fr' ? 'Mention'      : 'Grade',
             lang === 'fr' ? 'Appréciation' : 'Remark',
@@ -440,7 +440,7 @@ export default function ReportCards() {
           body: rc.entries.map(e => [e.subject_name || '', e.ca_score ?? 0, e.coefficient ?? 1, e.grade || '', e.remark || '']),
           foot: [[
             { content: lang === 'fr' ? 'Moyenne de la séquence' : 'Sequence Average', styles: { ...footCell, halign: 'left' } },
-            { content: `${rc.percentage}%`, styles: footCell },
+            { content: `${rc.percentage}/20`, styles: footCell },
             { content: '', styles: { fillColor: [238, 242, 255] } },
             { content: `${lang === 'fr' ? 'Rang' : 'Rank'}: ${rc.class_position ?? '—'}/${rc.out_of ?? '—'}`, colSpan: 2, styles: footCell },
           ]],
@@ -461,10 +461,10 @@ export default function ReportCards() {
         startY: y,
         head: [[
           lang === 'fr' ? 'Matière'      : 'Subject',
-          lang === 'fr' ? 'Séq 1 /100'  : 'Seq 1 /100',
-          lang === 'fr' ? 'Séq 2 /100'  : 'Seq 2 /100',
+          lang === 'fr' ? 'Séq 1 /20'  : 'Seq 1 /20',
+          lang === 'fr' ? 'Séq 2 /20'  : 'Seq 2 /20',
           lang === 'fr' ? 'Coef.'        : 'Coef.',
-          'Total /100',
+          'Total /20',
           lang === 'fr' ? 'Mention'      : 'Grade',
           lang === 'fr' ? 'Appréciation' : 'Remark',
         ]],
@@ -475,12 +475,12 @@ export default function ReportCards() {
         foot: [[
           { content: lang === 'fr' ? 'Moyenne générale' : 'Overall Average',
             styles: { fontStyle: 'bold', fillColor: [238, 242, 255], textColor: [79, 70, 229] } },
-          { content: `${rc.sequence1_average}%`,
+          { content: `${rc.sequence1_average}/20`,
             styles: { fontStyle: 'bold', halign: 'center', fillColor: [238, 242, 255], textColor: [79, 70, 229] } },
-          { content: `${rc.sequence2_average}%`,
+          { content: `${rc.sequence2_average}/20`,
             styles: { fontStyle: 'bold', halign: 'center', fillColor: [238, 242, 255], textColor: [79, 70, 229] } },
           { content: '', styles: { fillColor: [238, 242, 255] } },
-          { content: `${rc.percentage}%`,
+          { content: `${rc.percentage}/20`,
             styles: { fontStyle: 'bold', halign: 'center', fillColor: [238, 242, 255], textColor: [79, 70, 229] } },
           { content: `${lang === 'fr' ? 'Rang' : 'Rank'}: ${rc.class_position ?? '—'}/${rc.out_of ?? '—'}`, colSpan: 2,
             styles: { fontStyle: 'bold', halign: 'center', fillColor: [238, 242, 255], textColor: [79, 70, 229] } },
@@ -639,7 +639,7 @@ export default function ReportCards() {
                   <p className="text-xs mt-0.5">
                     {annualSummary.finalAverage !== null ? (
                       <span className="font-semibold text-emerald-700">
-                        {lang === 'fr' ? 'Moyenne annuelle' : 'Final Annual Average'}: {annualSummary.finalAverage}%
+                        {lang === 'fr' ? 'Moyenne annuelle' : 'Final Annual Average'}: {annualSummary.finalAverage}/20
                       </span>
                     ) : (
                       <span className="text-amber-600">
@@ -823,12 +823,12 @@ export default function ReportCards() {
                     {/* Stats */}
                     <div className="flex items-center gap-6 text-center">
                       <div>
-                        <p className="text-2xl font-bold text-indigo-600">{rc.percentage}%</p>
+                        <p className="text-2xl font-bold text-indigo-600">{rc.percentage}/20</p>
                         <p className="text-xs text-slate-400">{lang === 'fr' ? 'Moyenne' : 'Average'}</p>
                         <p className="text-[10px] text-slate-400">
                           {rc.sequence
-                            ? `${lang === 'fr' ? 'Séq' : 'Seq'} ${rc.sequence}: ${rc.sequence1_average}%`
-                            : <>{lang === 'fr' ? 'Séq' : 'Seq'} {(TERM_SEQUENCES[rc.term_name] ?? [1, 2])[0]}: {rc.sequence1_average}% · {lang === 'fr' ? 'Séq' : 'Seq'} {(TERM_SEQUENCES[rc.term_name] ?? [1, 2])[1]}: {rc.sequence2_average}%</>}
+                            ? `${lang === 'fr' ? 'Séq' : 'Seq'} ${rc.sequence}: ${rc.sequence1_average}/20`
+                            : <>{lang === 'fr' ? 'Séq' : 'Seq'} {(TERM_SEQUENCES[rc.term_name] ?? [1, 2])[0]}: {rc.sequence1_average}/20 · {lang === 'fr' ? 'Séq' : 'Seq'} {(TERM_SEQUENCES[rc.term_name] ?? [1, 2])[1]}: {rc.sequence2_average}/20</>}
                         </p>
                       </div>
                       <div>

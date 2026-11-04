@@ -131,7 +131,7 @@ export default function TeacherDashboard() {
       totals.set(m.student_id, cur);
     }));
     return [...totals.entries()]
-      .map(([id, v]) => ({ id, name: v.name, avg: Math.round(v.sum / v.count) }))
+      .map(([id, v]) => ({ id, name: v.name, avg: Math.round((v.sum / v.count) * 10) / 10 }))
       .sort((a, b) => b.avg - a.avg)
       .slice(0, 4);
   }, [marksByClass]);
@@ -256,7 +256,7 @@ export default function TeacherDashboard() {
                         {initials(s.name)}
                       </span>
                       <span className="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{s.name}</span>
-                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{s.avg}%</span>
+                      <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{s.avg}/20</span>
                     </div>
                   ))}
                 </div>

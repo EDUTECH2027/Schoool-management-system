@@ -282,7 +282,7 @@ export default function MasterSheet() {
                 <div key={b.studentId} className="mb-2 last:mb-0">
                   <p className="font-semibold text-slate-800 dark:text-slate-100">{b.name}</p>
                   <p className="text-xs text-slate-500">{b.matricule} · {L('Rank', 'Rang')} {b.rank}{data.bestStudents.length > 1 ? ` (${L('tie', 'ex æquo')})` : ''}</p>
-                  <p className="text-2xl font-bold text-amber-700">{fmt(b.average)}<span className="text-xs font-normal text-slate-500"> / 100</span></p>
+                  <p className="text-2xl font-bold text-amber-700">{fmt(b.average)}<span className="text-xs font-normal text-slate-500"> / 20</span></p>
                 </div>
               ))}
             </div>

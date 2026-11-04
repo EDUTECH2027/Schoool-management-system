@@ -13,7 +13,11 @@ import StudentEditModal from '../composants/students/StudentEditModal';
 import StudentAddModal  from '../composants/students/StudentAddModal';
 import type { FeeData } from '../composants/students/StudentAddModal';
 import { api, mediaUrl, type CreateStudentInput } from '../api/client';
+import Pagination from '../composants/ui/Pagination';
+import { fetchAllStudents } from '../utils/fetchAllStudents';
 import { mapStudent, mapClass } from '../api/mappers';
+
+const PAGE_SIZE = 15;
 
 export default function Students() {
   const { t } = useLanguage();
@@ -27,12 +31,14 @@ export default function Students() {
   const [filterGender, setFilterGender]   = useState('');
   const [kpiFilter, setKpiFilter]         = useState<'all' | 'male' | 'female' | 'active'>('all');
 
+  const [page, setPage] = useState(1);
+
   const [viewing, setViewing]   = useState<Student | null>(null);
   const [editing, setEditing]   = useState<Student | null>(null);
   const [adding,  setAdding]    = useState(false);
 
   useEffect(() => {
-    Promise.all([api.getStudents(), api.getClasses()])
+    Promise.all([fetchAllStudents(), api.getClasses()])
       .then(([sts, cls]) => {
         setStudentList(sts.map(mapStudent));
         setClasses(cls.map(mapClass));
@@ -52,6 +58,15 @@ export default function Students() {
                        : true;
     return matchSearch && matchClass && matchGender && matchKpi;
   });
+
+  // Back to the first page whenever the result set changes, so a filter never lands on an empty page.
+  const filterSig = `${search}|${filterClass}|${filterGender}|${kpiFilter}`;
+  const [lastSig, setLastSig] = useState(filterSig);
+  if (filterSig !== lastSig) { setLastSig(filterSig); setPage(1); }
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages); // clamps after edits shrink the list
+  const pageRows = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   const handleSave = async (updated: Student) => {
     try {
@@ -263,7 +278,7 @@ export default function Students() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map(s => (
+              {pageRows.map(s => (
                 <tr key={s.id} className="hover:bg-slate-50 transition-colors">
 
                   {/* Name + avatar */}
@@ -334,6 +349,7 @@ export default function Students() {
             </div>
           )}
         </div>
+        <Pagination total={filtered.length} page={currentPage} pageSize={PAGE_SIZE} onPage={setPage} />
       </div>
 
       {/* ── Modals ───────────────────────────────────────────── */}
