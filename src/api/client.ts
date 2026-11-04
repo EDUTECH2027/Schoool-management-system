@@ -477,6 +477,7 @@ export const api = {
   portalTeacherProfileUpdate:    (data: { phone?: string; qualification?: string }) =>
     request<Teacher>('PUT', '/portal/teacher/profile', data),
   portalTeacherClasses:          () => request<ClassRecord[]>('GET', '/portal/teacher/classes'),
+  portalTeacherSubjects:         () => request<Subject[]>('GET', '/portal/teacher/subjects'),
   portalTeacherTimetable:        () => request<ScheduleEntry[]>('GET', '/portal/teacher/timetable'),
   portalTeacherMyAttendance:     (month?: string) =>
     request<TeacherAttendanceRecord[]>('GET', `/portal/teacher/my-attendance${month ? `?month=${month}` : ''}`),

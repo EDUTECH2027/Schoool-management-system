@@ -70,7 +70,7 @@ export default function Header({ onMenuToggle }: HeaderProps) {
   const title = titles[pathname] ?? 'School Management';
 
   return (
-    <header className="min-h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 sm:px-6 shrink-0">
+    <header className="app-header min-h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-4 py-3 sm:px-6 shrink-0">
       <div className="flex items-center gap-2 w-full">
         {onMenuToggle && (
           <button

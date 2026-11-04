@@ -27,73 +27,228 @@ body { margin: 0; font-family: system-ui, 'Segoe UI', sans-serif; font-size: 14p
 }
 .print-only { display: none; }
 
-/* ── Dark mode — global overrides ─────────────────────────────────────────────
-   Non-layered CSS wins over @layer utilities in Tailwind v4, so these selectors
-   override Tailwind's generated classes without needing !important.
+/* ── Theme ─────────────────────────────────────────────────────────────────────
+   LIGHT: white surfaces (header, cards) on a soft blue-grey page (#f1f5f9) with a hairline
+          #e5e7eb header border and a faint shadow under it.
+   DARK : near-black page, one step lighter surfaces, one more for raised/hover. Every rule
+          below is a NON-layered override, which beats Tailwind's layered utilities without
+          !important. Each light "tint" (bg-X-50/100, text-X-600/700, hover:...) gets a dark
+          counterpart so a hover state can never turn a surface light under pale text.
 ─────────────────────────────────────────────────────────────────────────────── */
+:root { color-scheme: light; }
+
+.dark {
+  color-scheme: dark;
+  --d-page: #04060a;      /* app background */
+  --d-inset: #090d13;     /* wells / table headers inside a card */
+  --d-surface-0: #0a0e14; /* header, side panels */
+  --d-surface: #0e131b;   /* cards */
+  --d-raised: #151c27;    /* chips, hover on a card */
+  --d-raised-2: #1d2634;  /* stronger hover, bars */
+  --d-raised-3: #2a3546;
+  --d-border-soft: #141b26;
+  --d-border: #1c2431;
+  --d-border-strong: #2a3546;
+}
+
+/* App shell (Layout / PortalLayout / PlatformLayout) */
+.app-shell { background-color: #f1f5f9; }
+.app-header {
+  border-color: #e5e7eb;
+  box-shadow: 0 2px 6px -1px rgba(15, 23, 42, .07);
+}
+.dark body { background-color: var(--d-page); color: #e2e8f0; }
+.dark .app-shell { background-color: var(--d-page); }
+.dark .app-header { border-color: var(--d-border); box-shadow: 0 1px 0 rgba(255, 255, 255, .03); }
+.dark aside.bg-slate-900 { background-color: #070a10; border-right: 1px solid var(--d-border-soft); }
 
 /* Neutral backgrounds */
-.dark .bg-white     { background-color: #1e293b; } /* slate-800 */
-.dark .bg-slate-50  { background-color: #0f172a; } /* slate-950 */
-.dark .bg-slate-100 { background-color: #1e293b; } /* slate-800 */
-.dark .bg-slate-200 { background-color: #334155; } /* slate-700 */
-.dark .bg-slate-300 { background-color: #475569; } /* slate-600 */
+.dark .bg-white     { background-color: var(--d-surface); }
+.dark .bg-slate-50  { background-color: var(--d-inset); }
+.dark .bg-slate-100 { background-color: var(--d-raised); }
+.dark .bg-slate-200 { background-color: var(--d-raised-2); }
+.dark .bg-slate-300 { background-color: var(--d-raised-3); }
+/* Explicit dark: variants used across the portals (declared after the base rules so they win) */
+.dark .dark\:bg-slate-950 { background-color: var(--d-page); }
+.dark .dark\:bg-slate-900 { background-color: var(--d-surface-0); }
+.dark .dark\:bg-slate-800 { background-color: var(--d-surface); }
+.dark .dark\:bg-slate-700 { background-color: var(--d-raised); }
+.dark .dark\:bg-slate-600 { background-color: var(--d-raised-2); }
+.dark .dark\:bg-slate-700\/50 { background-color: rgba(148, 163, 184, .08); }
+.dark .dark\:bg-slate-900\/40 { background-color: rgba(0, 0, 0, .28); }
 
-/* Hover backgrounds — must target the generated hover: utility class */
-.dark .hover\:bg-slate-50:hover  { background-color: #1e293b; } /* slate-800 */
-.dark .hover\:bg-slate-100:hover { background-color: #293548; } /* between 800 and 700 */
-.dark .hover\:bg-slate-200:hover { background-color: #334155; } /* slate-700 */
+/* Hover / focus / disabled backgrounds: always a step LIGHTER than the surface they sit on */
+.dark .hover\:bg-slate-50:hover  { background-color: #131a24; }
+.dark .hover\:bg-slate-100:hover { background-color: #171f2b; }
+.dark .hover\:bg-slate-200:hover { background-color: #1d2735; }
+.dark .hover\:bg-white:hover     { background-color: var(--d-raised); }
+.dark .hover\:bg-slate-50\/60:hover { background-color: rgba(148, 163, 184, .07); }
+.dark .dark\:hover\:bg-slate-800:hover { background-color: #131a24; }
+.dark .dark\:hover\:bg-slate-700:hover { background-color: #1a2330; }
+.dark .dark\:hover\:bg-slate-700\/30:hover { background-color: rgba(148, 163, 184, .07); }
+.dark .dark\:hover\:bg-slate-700\/40:hover { background-color: rgba(148, 163, 184, .09); }
+.dark .dark\:hover\:bg-slate-700\/50:hover { background-color: rgba(148, 163, 184, .11); }
+.dark .dark\:hover\:bg-slate-800\/50:hover { background-color: rgba(148, 163, 184, .06); }
+.dark .focus\:bg-white:focus { background-color: var(--d-raised); }
+.dark .disabled\:bg-slate-50:disabled { background-color: var(--d-inset); }
 
-/* Borders */
+/* Borders & dividers */
+.dark .border-slate-50,
+.dark .border-slate-100,
+.dark .dark\:border-slate-800 { border-color: var(--d-border-soft); }
 .dark .border-slate-200,
-.dark .border-slate-100 { border-color: #334155; } /* slate-700 */
-
-/* Dividers (table rows etc.) */
-.dark .divide-slate-100 > * { border-color: #334155; }
-.dark .divide-slate-200 > * { border-color: #334155; }
+.dark .dark\:border-slate-700 { border-color: var(--d-border); }
+.dark .border-slate-300,
+.dark .dark\:border-slate-600,
+.dark .dark\:border-slate-500 { border-color: var(--d-border-strong); }
+.dark .dark\:border-slate-700\/60,
+.dark .dark\:border-slate-700\/50 { border-color: rgba(148, 163, 184, .10); }
+.dark .hover\:border-slate-300:hover,
+.dark .dark\:hover\:border-slate-600:hover { border-color: #3a4760; }
+.dark .divide-slate-50 > *,
+.dark .divide-slate-100 > *,
+.dark .dark\:divide-slate-800 > * { border-color: var(--d-border-soft); }
+.dark .divide-slate-200 > *,
+.dark .dark\:divide-slate-700 > * { border-color: var(--d-border); }
 
 /* Text */
-.dark .text-slate-900 { color: #f8fafc; } /* slate-50  */
-.dark .text-slate-800 { color: #f1f5f9; } /* slate-100 */
-.dark .text-slate-700 { color: #e2e8f0; } /* slate-200 */
-.dark .text-slate-600 { color: #cbd5e1; } /* slate-300 */
-.dark .text-slate-500 { color: #94a3b8; } /* slate-400 */
+.dark .text-slate-900 { color: #f8fafc; }
+.dark .text-slate-800 { color: #f1f5f9; }
+.dark .text-slate-700 { color: #e2e8f0; }
+.dark .text-slate-600 { color: #cbd5e1; }
+.dark .text-slate-500 { color: #9aa7ba; }
+.dark .dark\:text-slate-900 { color: #0f172a; } /* explicit "dark text on a bright tile" */
+.dark .text-red-500, .dark .hover\:text-red-500:hover { color: #f87171; } /* #ef4444 is only 4.2:1 on a hovered red tint */
+/* Hover text must get LIGHTER in dark mode (the light-mode values are dark greys) */
+.dark .hover\:text-slate-600:hover { color: #cbd5e1; }
+.dark .hover\:text-slate-700:hover { color: #e2e8f0; }
+.dark .hover\:text-slate-800:hover { color: #f1f5f9; }
+.dark .hover\:text-slate-900:hover { color: #f8fafc; }
+.dark .group:hover .group-hover\:text-slate-700 { color: #e2e8f0; }
+.dark .disabled\:text-slate-500:disabled { color: #64748b; }
 
-/* Light tint backgrounds (badges, highlights) */
-.dark .bg-indigo-50  { background-color: rgba(79,70,229,.18);  }
-.dark .bg-green-50   { background-color: rgba(34,197,94,.12);  }
-.dark .bg-emerald-50 { background-color: rgba(16,185,129,.12); }
-.dark .bg-red-50     { background-color: rgba(239,68,68,.12);  }
-.dark .bg-amber-50   { background-color: rgba(245,158,11,.12); }
-.dark .bg-orange-50  { background-color: rgba(249,115,22,.12); }
-.dark .bg-violet-50  { background-color: rgba(139,92,246,.12); }
-.dark .bg-sky-50     { background-color: rgba(14,165,233,.12); }
-.dark .bg-blue-50    { background-color: rgba(59,130,246,.12); }
-.dark .bg-pink-50    { background-color: rgba(236,72,153,.12); }
-.dark .bg-rose-50    { background-color: rgba(244,63,94,.12);  }
-.dark .bg-teal-50    { background-color: rgba(20,184,166,.12); }
-.dark .bg-purple-50  { background-color: rgba(168,85,247,.12); }
+/* Coloured tints: soft translucent fills + readable light text; hover states stay translucent */
+/* indigo */
+.dark .bg-indigo-50{background-color:rgba(99,102,241,0.1)}.dark .bg-indigo-100{background-color:rgba(99,102,241,0.16)}
+.dark .hover\:bg-indigo-50:hover{background-color:rgba(99,102,241,0.16)}.dark .hover\:bg-indigo-100:hover{background-color:rgba(99,102,241,0.22)}.dark .hover\:bg-indigo-200:hover{background-color:rgba(99,102,241,0.3)}
+.dark .group:hover .group-hover\:bg-indigo-50\/50,.dark .group:hover .group-hover\:bg-indigo-100{background-color:rgba(99,102,241,0.22)}
+.dark .text-indigo-600{color:#818cf8}.dark .text-indigo-700,.dark .text-indigo-800,.dark .text-indigo-900{color:#a5b4fc}
+.dark .hover\:text-indigo-600:hover,.dark .hover\:text-indigo-700:hover,.dark .hover\:text-indigo-800:hover,.dark .hover\:text-indigo-900:hover,.dark .group:hover .group-hover\:text-indigo-700{color:#a5b4fc}
+.dark .border-indigo-100{border-color:rgba(99,102,241,0.2)}.dark .border-indigo-200{border-color:rgba(99,102,241,0.28)}.dark .border-indigo-300{border-color:rgba(99,102,241,0.38)}
+.dark .hover\:border-indigo-300:hover{border-color:rgba(99,102,241,0.55)}
+/* red */
+.dark .bg-red-50{background-color:rgba(239,68,68,0.1)}.dark .bg-red-100{background-color:rgba(239,68,68,0.16)}
+.dark .hover\:bg-red-50:hover{background-color:rgba(239,68,68,0.16)}.dark .hover\:bg-red-100:hover{background-color:rgba(239,68,68,0.22)}.dark .hover\:bg-red-200:hover{background-color:rgba(239,68,68,0.3)}
+.dark .group:hover .group-hover\:bg-red-50\/50,.dark .group:hover .group-hover\:bg-red-100{background-color:rgba(239,68,68,0.22)}
+.dark .text-red-600{color:#f87171}.dark .text-red-700,.dark .text-red-800,.dark .text-red-900{color:#fca5a5}
+.dark .hover\:text-red-600:hover,.dark .hover\:text-red-700:hover,.dark .hover\:text-red-800:hover,.dark .hover\:text-red-900:hover,.dark .group:hover .group-hover\:text-red-700{color:#fca5a5}
+.dark .border-red-100{border-color:rgba(239,68,68,0.2)}.dark .border-red-200{border-color:rgba(239,68,68,0.28)}.dark .border-red-300{border-color:rgba(239,68,68,0.38)}
+.dark .hover\:border-red-300:hover{border-color:rgba(239,68,68,0.55)}
+/* amber */
+.dark .bg-amber-50{background-color:rgba(245,158,11,0.1)}.dark .bg-amber-100{background-color:rgba(245,158,11,0.16)}
+.dark .hover\:bg-amber-50:hover{background-color:rgba(245,158,11,0.16)}.dark .hover\:bg-amber-100:hover{background-color:rgba(245,158,11,0.22)}.dark .hover\:bg-amber-200:hover{background-color:rgba(245,158,11,0.3)}
+.dark .group:hover .group-hover\:bg-amber-50\/50,.dark .group:hover .group-hover\:bg-amber-100{background-color:rgba(245,158,11,0.22)}
+.dark .text-amber-600{color:#fbbf24}.dark .text-amber-700,.dark .text-amber-800,.dark .text-amber-900{color:#fcd34d}
+.dark .hover\:text-amber-600:hover,.dark .hover\:text-amber-700:hover,.dark .hover\:text-amber-800:hover,.dark .hover\:text-amber-900:hover,.dark .group:hover .group-hover\:text-amber-700{color:#fcd34d}
+.dark .border-amber-100{border-color:rgba(245,158,11,0.2)}.dark .border-amber-200{border-color:rgba(245,158,11,0.28)}.dark .border-amber-300{border-color:rgba(245,158,11,0.38)}
+.dark .hover\:border-amber-300:hover{border-color:rgba(245,158,11,0.55)}
+/* emerald */
+.dark .bg-emerald-50{background-color:rgba(16,185,129,0.1)}.dark .bg-emerald-100{background-color:rgba(16,185,129,0.16)}
+.dark .hover\:bg-emerald-50:hover{background-color:rgba(16,185,129,0.16)}.dark .hover\:bg-emerald-100:hover{background-color:rgba(16,185,129,0.22)}.dark .hover\:bg-emerald-200:hover{background-color:rgba(16,185,129,0.3)}
+.dark .group:hover .group-hover\:bg-emerald-50\/50,.dark .group:hover .group-hover\:bg-emerald-100{background-color:rgba(16,185,129,0.22)}
+.dark .text-emerald-600{color:#34d399}.dark .text-emerald-700,.dark .text-emerald-800,.dark .text-emerald-900{color:#6ee7b7}
+.dark .hover\:text-emerald-600:hover,.dark .hover\:text-emerald-700:hover,.dark .hover\:text-emerald-800:hover,.dark .hover\:text-emerald-900:hover,.dark .group:hover .group-hover\:text-emerald-700{color:#6ee7b7}
+.dark .border-emerald-100{border-color:rgba(16,185,129,0.2)}.dark .border-emerald-200{border-color:rgba(16,185,129,0.28)}.dark .border-emerald-300{border-color:rgba(16,185,129,0.38)}
+.dark .hover\:border-emerald-300:hover{border-color:rgba(16,185,129,0.55)}
+/* green */
+.dark .bg-green-50{background-color:rgba(34,197,94,0.1)}.dark .bg-green-100{background-color:rgba(34,197,94,0.16)}
+.dark .hover\:bg-green-50:hover{background-color:rgba(34,197,94,0.16)}.dark .hover\:bg-green-100:hover{background-color:rgba(34,197,94,0.22)}.dark .hover\:bg-green-200:hover{background-color:rgba(34,197,94,0.3)}
+.dark .group:hover .group-hover\:bg-green-50\/50,.dark .group:hover .group-hover\:bg-green-100{background-color:rgba(34,197,94,0.22)}
+.dark .text-green-600{color:#4ade80}.dark .text-green-700,.dark .text-green-800,.dark .text-green-900{color:#86efac}
+.dark .hover\:text-green-600:hover,.dark .hover\:text-green-700:hover,.dark .hover\:text-green-800:hover,.dark .hover\:text-green-900:hover,.dark .group:hover .group-hover\:text-green-700{color:#86efac}
+.dark .border-green-100{border-color:rgba(34,197,94,0.2)}.dark .border-green-200{border-color:rgba(34,197,94,0.28)}.dark .border-green-300{border-color:rgba(34,197,94,0.38)}
+.dark .hover\:border-green-300:hover{border-color:rgba(34,197,94,0.55)}
+/* blue */
+.dark .bg-blue-50{background-color:rgba(59,130,246,0.1)}.dark .bg-blue-100{background-color:rgba(59,130,246,0.16)}
+.dark .hover\:bg-blue-50:hover{background-color:rgba(59,130,246,0.16)}.dark .hover\:bg-blue-100:hover{background-color:rgba(59,130,246,0.22)}.dark .hover\:bg-blue-200:hover{background-color:rgba(59,130,246,0.3)}
+.dark .group:hover .group-hover\:bg-blue-50\/50,.dark .group:hover .group-hover\:bg-blue-100{background-color:rgba(59,130,246,0.22)}
+.dark .text-blue-600{color:#60a5fa}.dark .text-blue-700,.dark .text-blue-800,.dark .text-blue-900{color:#93c5fd}
+.dark .hover\:text-blue-600:hover,.dark .hover\:text-blue-700:hover,.dark .hover\:text-blue-800:hover,.dark .hover\:text-blue-900:hover,.dark .group:hover .group-hover\:text-blue-700{color:#93c5fd}
+.dark .border-blue-100{border-color:rgba(59,130,246,0.2)}.dark .border-blue-200{border-color:rgba(59,130,246,0.28)}.dark .border-blue-300{border-color:rgba(59,130,246,0.38)}
+.dark .hover\:border-blue-300:hover{border-color:rgba(59,130,246,0.55)}
+/* pink */
+.dark .bg-pink-50{background-color:rgba(236,72,153,0.1)}.dark .bg-pink-100{background-color:rgba(236,72,153,0.16)}
+.dark .hover\:bg-pink-50:hover{background-color:rgba(236,72,153,0.16)}.dark .hover\:bg-pink-100:hover{background-color:rgba(236,72,153,0.22)}.dark .hover\:bg-pink-200:hover{background-color:rgba(236,72,153,0.3)}
+.dark .group:hover .group-hover\:bg-pink-50\/50,.dark .group:hover .group-hover\:bg-pink-100{background-color:rgba(236,72,153,0.22)}
+.dark .text-pink-600{color:#f472b6}.dark .text-pink-700,.dark .text-pink-800,.dark .text-pink-900{color:#f9a8d4}
+.dark .hover\:text-pink-600:hover,.dark .hover\:text-pink-700:hover,.dark .hover\:text-pink-800:hover,.dark .hover\:text-pink-900:hover,.dark .group:hover .group-hover\:text-pink-700{color:#f9a8d4}
+.dark .border-pink-100{border-color:rgba(236,72,153,0.2)}.dark .border-pink-200{border-color:rgba(236,72,153,0.28)}.dark .border-pink-300{border-color:rgba(236,72,153,0.38)}
+.dark .hover\:border-pink-300:hover{border-color:rgba(236,72,153,0.55)}
+/* orange */
+.dark .bg-orange-50{background-color:rgba(249,115,22,0.1)}.dark .bg-orange-100{background-color:rgba(249,115,22,0.16)}
+.dark .hover\:bg-orange-50:hover{background-color:rgba(249,115,22,0.16)}.dark .hover\:bg-orange-100:hover{background-color:rgba(249,115,22,0.22)}.dark .hover\:bg-orange-200:hover{background-color:rgba(249,115,22,0.3)}
+.dark .group:hover .group-hover\:bg-orange-50\/50,.dark .group:hover .group-hover\:bg-orange-100{background-color:rgba(249,115,22,0.22)}
+.dark .text-orange-600{color:#fb923c}.dark .text-orange-700,.dark .text-orange-800,.dark .text-orange-900{color:#fdba74}
+.dark .hover\:text-orange-600:hover,.dark .hover\:text-orange-700:hover,.dark .hover\:text-orange-800:hover,.dark .hover\:text-orange-900:hover,.dark .group:hover .group-hover\:text-orange-700{color:#fdba74}
+.dark .border-orange-100{border-color:rgba(249,115,22,0.2)}.dark .border-orange-200{border-color:rgba(249,115,22,0.28)}.dark .border-orange-300{border-color:rgba(249,115,22,0.38)}
+.dark .hover\:border-orange-300:hover{border-color:rgba(249,115,22,0.55)}
+/* violet */
+.dark .bg-violet-50{background-color:rgba(139,92,246,0.1)}.dark .bg-violet-100{background-color:rgba(139,92,246,0.16)}
+.dark .hover\:bg-violet-50:hover{background-color:rgba(139,92,246,0.16)}.dark .hover\:bg-violet-100:hover{background-color:rgba(139,92,246,0.22)}.dark .hover\:bg-violet-200:hover{background-color:rgba(139,92,246,0.3)}
+.dark .group:hover .group-hover\:bg-violet-50\/50,.dark .group:hover .group-hover\:bg-violet-100{background-color:rgba(139,92,246,0.22)}
+.dark .text-violet-600{color:#a78bfa}.dark .text-violet-700,.dark .text-violet-800,.dark .text-violet-900{color:#c4b5fd}
+.dark .hover\:text-violet-600:hover,.dark .hover\:text-violet-700:hover,.dark .hover\:text-violet-800:hover,.dark .hover\:text-violet-900:hover,.dark .group:hover .group-hover\:text-violet-700{color:#c4b5fd}
+.dark .border-violet-100{border-color:rgba(139,92,246,0.2)}.dark .border-violet-200{border-color:rgba(139,92,246,0.28)}.dark .border-violet-300{border-color:rgba(139,92,246,0.38)}
+.dark .hover\:border-violet-300:hover{border-color:rgba(139,92,246,0.55)}
+/* purple */
+.dark .bg-purple-50{background-color:rgba(168,85,247,0.1)}.dark .bg-purple-100{background-color:rgba(168,85,247,0.16)}
+.dark .hover\:bg-purple-50:hover{background-color:rgba(168,85,247,0.16)}.dark .hover\:bg-purple-100:hover{background-color:rgba(168,85,247,0.22)}.dark .hover\:bg-purple-200:hover{background-color:rgba(168,85,247,0.3)}
+.dark .group:hover .group-hover\:bg-purple-50\/50,.dark .group:hover .group-hover\:bg-purple-100{background-color:rgba(168,85,247,0.22)}
+.dark .text-purple-600{color:#c084fc}.dark .text-purple-700,.dark .text-purple-800,.dark .text-purple-900{color:#d8b4fe}
+.dark .hover\:text-purple-600:hover,.dark .hover\:text-purple-700:hover,.dark .hover\:text-purple-800:hover,.dark .hover\:text-purple-900:hover,.dark .group:hover .group-hover\:text-purple-700{color:#d8b4fe}
+.dark .border-purple-100{border-color:rgba(168,85,247,0.2)}.dark .border-purple-200{border-color:rgba(168,85,247,0.28)}.dark .border-purple-300{border-color:rgba(168,85,247,0.38)}
+.dark .hover\:border-purple-300:hover{border-color:rgba(168,85,247,0.55)}
+/* rose */
+.dark .bg-rose-50{background-color:rgba(244,63,94,0.1)}.dark .bg-rose-100{background-color:rgba(244,63,94,0.16)}
+.dark .hover\:bg-rose-50:hover{background-color:rgba(244,63,94,0.16)}.dark .hover\:bg-rose-100:hover{background-color:rgba(244,63,94,0.22)}.dark .hover\:bg-rose-200:hover{background-color:rgba(244,63,94,0.3)}
+.dark .group:hover .group-hover\:bg-rose-50\/50,.dark .group:hover .group-hover\:bg-rose-100{background-color:rgba(244,63,94,0.22)}
+.dark .text-rose-600{color:#fb7185}.dark .text-rose-700,.dark .text-rose-800,.dark .text-rose-900{color:#fda4af}
+.dark .hover\:text-rose-600:hover,.dark .hover\:text-rose-700:hover,.dark .hover\:text-rose-800:hover,.dark .hover\:text-rose-900:hover,.dark .group:hover .group-hover\:text-rose-700{color:#fda4af}
+.dark .border-rose-100{border-color:rgba(244,63,94,0.2)}.dark .border-rose-200{border-color:rgba(244,63,94,0.28)}.dark .border-rose-300{border-color:rgba(244,63,94,0.38)}
+.dark .hover\:border-rose-300:hover{border-color:rgba(244,63,94,0.55)}
+/* yellow */
+.dark .bg-yellow-50{background-color:rgba(234,179,8,0.1)}.dark .bg-yellow-100{background-color:rgba(234,179,8,0.16)}
+.dark .hover\:bg-yellow-50:hover{background-color:rgba(234,179,8,0.16)}.dark .hover\:bg-yellow-100:hover{background-color:rgba(234,179,8,0.22)}.dark .hover\:bg-yellow-200:hover{background-color:rgba(234,179,8,0.3)}
+.dark .group:hover .group-hover\:bg-yellow-50\/50,.dark .group:hover .group-hover\:bg-yellow-100{background-color:rgba(234,179,8,0.22)}
+.dark .text-yellow-600{color:#facc15}.dark .text-yellow-700,.dark .text-yellow-800,.dark .text-yellow-900{color:#fde047}
+.dark .hover\:text-yellow-600:hover,.dark .hover\:text-yellow-700:hover,.dark .hover\:text-yellow-800:hover,.dark .hover\:text-yellow-900:hover,.dark .group:hover .group-hover\:text-yellow-700{color:#fde047}
+.dark .border-yellow-100{border-color:rgba(234,179,8,0.2)}.dark .border-yellow-200{border-color:rgba(234,179,8,0.28)}.dark .border-yellow-300{border-color:rgba(234,179,8,0.38)}
+.dark .hover\:border-yellow-300:hover{border-color:rgba(234,179,8,0.55)}
+/* teal */
+.dark .bg-teal-50{background-color:rgba(20,184,166,0.1)}.dark .bg-teal-100{background-color:rgba(20,184,166,0.16)}
+.dark .hover\:bg-teal-50:hover{background-color:rgba(20,184,166,0.16)}.dark .hover\:bg-teal-100:hover{background-color:rgba(20,184,166,0.22)}.dark .hover\:bg-teal-200:hover{background-color:rgba(20,184,166,0.3)}
+.dark .group:hover .group-hover\:bg-teal-50\/50,.dark .group:hover .group-hover\:bg-teal-100{background-color:rgba(20,184,166,0.22)}
+.dark .text-teal-600{color:#2dd4bf}.dark .text-teal-700,.dark .text-teal-800,.dark .text-teal-900{color:#5eead4}
+.dark .hover\:text-teal-600:hover,.dark .hover\:text-teal-700:hover,.dark .hover\:text-teal-800:hover,.dark .hover\:text-teal-900:hover,.dark .group:hover .group-hover\:text-teal-700{color:#5eead4}
+.dark .border-teal-100{border-color:rgba(20,184,166,0.2)}.dark .border-teal-200{border-color:rgba(20,184,166,0.28)}.dark .border-teal-300{border-color:rgba(20,184,166,0.38)}
+.dark .hover\:border-teal-300:hover{border-color:rgba(20,184,166,0.55)}
+/* sky */
+.dark .bg-sky-50{background-color:rgba(14,165,233,0.1)}.dark .bg-sky-100{background-color:rgba(14,165,233,0.16)}
+.dark .hover\:bg-sky-50:hover{background-color:rgba(14,165,233,0.16)}.dark .hover\:bg-sky-100:hover{background-color:rgba(14,165,233,0.22)}.dark .hover\:bg-sky-200:hover{background-color:rgba(14,165,233,0.3)}
+.dark .group:hover .group-hover\:bg-sky-50\/50,.dark .group:hover .group-hover\:bg-sky-100{background-color:rgba(14,165,233,0.22)}
+.dark .text-sky-600{color:#38bdf8}.dark .text-sky-700,.dark .text-sky-800,.dark .text-sky-900{color:#7dd3fc}
+.dark .hover\:text-sky-600:hover,.dark .hover\:text-sky-700:hover,.dark .hover\:text-sky-800:hover,.dark .hover\:text-sky-900:hover,.dark .group:hover .group-hover\:text-sky-700{color:#7dd3fc}
+.dark .border-sky-100{border-color:rgba(14,165,233,0.2)}.dark .border-sky-200{border-color:rgba(14,165,233,0.28)}.dark .border-sky-300{border-color:rgba(14,165,233,0.38)}
+.dark .hover\:border-sky-300:hover{border-color:rgba(14,165,233,0.55)}
 
-/* Light tint text colours — keep readable on tinted dark bg */
-.dark .text-indigo-700 { color: #a5b4fc; } /* indigo-300 */
-.dark .text-green-700  { color: #86efac; } /* green-300  */
-.dark .text-emerald-700{ color: #6ee7b7; }
-.dark .text-red-700    { color: #fca5a5; }
-.dark .text-amber-700  { color: #fcd34d; }
-.dark .text-orange-700 { color: #fdba74; }
-.dark .text-violet-700 { color: #c4b5fd; }
-.dark .text-sky-700    { color: #7dd3fc; }
-.dark .text-blue-700   { color: #93c5fd; }
-.dark .text-pink-700   { color: #f9a8d4; }
-.dark .text-rose-700   { color: #fda4af; }
-.dark .text-teal-700   { color: #5eead4; }
-.dark .text-purple-700 { color: #d8b4fe; }
-
-/* Form elements — dark background for inputs without explicit bg class */
+/* Form controls */
 .dark input, .dark select, .dark textarea {
   color-scheme: dark;
-  background-color: #1e293b;
+  background-color: #0f151e;
   color: #f1f5f9;
-  border-color: #334155;
+  border-color: #243044;
 }
-.dark input::placeholder, .dark textarea::placeholder { color: #475569; }
+.dark input:hover:not(:disabled), .dark select:hover:not(:disabled), .dark textarea:hover:not(:disabled) { border-color: #324058; }
+.dark input::placeholder, .dark textarea::placeholder { color: #64748b; }
+.dark input:disabled, .dark select:disabled, .dark textarea:disabled { background-color: var(--d-inset); color: #64748b; }
+.dark option { background-color: #0f151e; color: #f1f5f9; }

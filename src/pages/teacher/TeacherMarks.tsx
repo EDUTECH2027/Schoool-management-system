@@ -31,14 +31,16 @@ export default function TeacherMarks() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [marksOpen, setMarksOpen] = useState(true);
+  const [subjectsLoaded, setSubjectsLoaded] = useState(false);
   const [classCoefs, setClassCoefs] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    Promise.all([api.portalTeacherClasses(), api.getTerms(), api.getSubjects(), api.getMarksSettings().catch(() => null)])
+    Promise.all([api.portalTeacherClasses(), api.getTerms(), api.portalTeacherSubjects(), api.getMarksSettings().catch(() => null)])
       .then(([cls, trm, subj, marksSettings]) => {
         setClasses(cls);
         setTerms(trm);
         setSubjects(subj);
+        setSubjectsLoaded(true);
         if (cls[0]) setClassId(cls[0].id);
         if (trm[0]) setTermId(trm[0].id);
         if (subj[0]) { setSubjectId(subj[0].id); setSubjectName(subj[0].name); }
@@ -86,6 +88,13 @@ export default function TeacherMarks() {
         <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm px-4 py-3 rounded-lg border border-amber-200 dark:border-amber-800">
           <Lock size={16} className="shrink-0" />
           The marks filling period is currently closed. Entries are read-only until an admin reopens it.
+        </div>
+      )}
+
+      {subjectsLoaded && subjects.length === 0 && (
+        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400 text-sm px-4 py-3 rounded-lg border border-amber-200 dark:border-amber-800">
+          <Lock size={16} className="shrink-0" />
+          No subject has been assigned to you yet, so there is nothing to enter marks for. Ask the administrator to assign your subjects.
         </div>
       )}
 
