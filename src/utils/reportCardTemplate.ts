@@ -246,7 +246,8 @@ export async function renderPdfFirstPage(bytes: ArrayBuffer, targetWidthPx: numb
     import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
   ]);
   pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorkerUrl;
-  const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+  // pdf.js takes ownership (detaches) the buffer it is given; callers keep using theirs, so pass a copy.
+  const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(bytes.slice(0)) }).promise;
   const page = await pdf.getPage(1);
   const unscaled = page.getViewport({ scale: 1 });
   const scale = targetWidthPx / unscaled.width;
