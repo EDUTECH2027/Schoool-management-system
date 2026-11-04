@@ -10,7 +10,7 @@ import { api, mediaUrl, type ClassRecord, type Student, type AnnualSummary, type
 import { useLanguage } from '../i18n/LanguageContext';
 import { StatusBadge } from '../composants/ui/Badge';
 import { clsx } from 'clsx';
-import { fillTemplatePdf, renderPdfPages, type TemplateField } from '../utils/reportCardTemplate';
+import { fillTemplatePdf, renderPdfPages, type TemplateField, type TemplateReportCard } from '../utils/reportCardTemplate';
 import { SEQUENCE_OPTIONS, SEQUENCE_TERM, toSequenceCards, type SequenceNumber } from '../utils/sequenceReportCards';
 
 // Raw DB response types (snake_case)
@@ -247,29 +247,81 @@ export default function ReportCards() {
   const [previewImages, setPreviewImages] = useState<string[] | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [printImages, setPrintImages] = useState<string[] | null>(null);
+  const selectedClass = classes.find(c => c.id === classId);
+  const selectedTerm  = terms.find(tm => tm.id === termId);
+
+  // Single-sequence cards are computed from the term's stored cards (term generation is untouched).
+  const displayCards = useMemo<RcRecord[]>(
+    () => (sequence ? toSequenceCards(reportCards, sequence) : reportCards),
+    [reportCards, sequence],
+  );
+
   const templateBytesRef = useRef<{ path: string; bytes: ArrayBuffer } | null>(null);
+  const extrasRef = useRef<{ key: string; byStudent: Map<string, { repeater: boolean | null; justifiedAbsences: number; unjustifiedAbsences: number }> } | null>(null);
+  const photoCacheRef = useRef<Map<string, { bytes: Uint8Array; mime: string } | null>>(new Map());
+  const passMarkRef = useRef<number | null>(null);
 
   // Same condition the PDF download already uses: an enabled template that has placed fields.
   const templateActive = !!(rcTemplate?.is_enabled && rcTemplate.file_path && (rcTemplate.fields?.length ?? 0) > 0);
 
+  // Adds the student facts a structured template can print (identity, class master, repeater, absences, photo).
+  const buildTemplateCards = useCallback(async (cards: RcRecord[], withPhotos: boolean): Promise<TemplateReportCard[]> => {
+    const key = `${classId}|${termId}`;
+    if (extrasRef.current?.key !== key) {
+      const rows = await api.getReportCardStudentExtras({ classId, termId }).catch(() => []);
+      extrasRef.current = { key, byStudent: new Map(rows.map(r => [r.studentId, r])) };
+    }
+    const extras = extrasRef.current.byStudent;
+    return Promise.all(cards.map(async (rc): Promise<TemplateReportCard> => {
+      const st = students.find(s => s.id === rc.student_id);
+      const ex = extras.get(rc.student_id);
+      let photo: { bytes: Uint8Array; mime: string } | null = null;
+      if (withPhotos && st?.photo_url) {
+        if (!photoCacheRef.current.has(st.id)) {
+          try {
+            const res = await fetch(mediaUrl(st.photo_url));
+            photoCacheRef.current.set(st.id, res.ok ? { bytes: new Uint8Array(await res.arrayBuffer()), mime: res.headers.get('content-type') ?? '' } : null);
+          } catch { photoCacheRef.current.set(st.id, null); }
+        }
+        photo = photoCacheRef.current.get(st.id) ?? null;
+      }
+      return {
+        ...rc,
+        gender: st?.gender ?? null, date_of_birth: st?.date_of_birth ?? null, nui: st?.student_nui ?? null,
+        class_master: selectedClass?.class_teacher_name ?? null,
+        repeater: ex?.repeater ?? null, days_absent: rc.days_absent,
+        justified_absences: ex?.justifiedAbsences, unjustified_absences: ex?.unjustifiedAbsences,
+        photo,
+      };
+    }));
+  }, [classId, termId, students, selectedClass]);
+
+  // Fills the uploaded PDF template for the given cards. Ranks / min / max / class profile are computed
+  // against every card of the class for the displayed period, so a single-card preview is still correct.
+  const fillWithTemplate = useCallback(async (cards: RcRecord[]): Promise<Uint8Array> => {
+    if (!rcTemplate?.file_path) throw new Error('no template');
+    if (templateBytesRef.current?.path !== rcTemplate.file_path) {
+      const bytes = await fetch(mediaUrl(rcTemplate.file_path)).then(r => {
+        if (!r.ok) throw new Error(`template fetch failed (${r.status})`);
+        return r.arrayBuffer();
+      });
+      templateBytesRef.current = { path: rcTemplate.file_path, bytes };
+    }
+    if (passMarkRef.current == null) passMarkRef.current = await api.eoy.getConfig().then(c => c.passAverage).catch(() => 10);
+    const [fillCards, classCards] = await Promise.all([buildTemplateCards(cards, true), buildTemplateCards(displayCards, false)]);
+    return fillTemplatePdf(templateBytesRef.current.bytes.slice(0), rcTemplate.fields as TemplateField[], fillCards, schoolInfo, lang, { classCards, passMark: passMarkRef.current });
+  }, [rcTemplate, schoolInfo, lang, buildTemplateCards, displayCards]);
+
   // Renders the given cards through the uploaded template; null = use the built-in layout instead.
   const renderWithTemplate = useCallback(async (cards: RcRecord[]): Promise<string[] | null> => {
-    if (!templateActive || !rcTemplate?.file_path || cards.length === 0) return null;
+    if (!templateActive || cards.length === 0) return null;
     try {
-      if (templateBytesRef.current?.path !== rcTemplate.file_path) {
-        const bytes = await fetch(mediaUrl(rcTemplate.file_path)).then(r => {
-          if (!r.ok) throw new Error(`template fetch failed (${r.status})`);
-          return r.arrayBuffer();
-        });
-        templateBytesRef.current = { path: rcTemplate.file_path, bytes };
-      }
-      const filled = await fillTemplatePdf(templateBytesRef.current.bytes.slice(0), rcTemplate.fields as TemplateField[], cards, schoolInfo, lang);
-      return await renderPdfPages(filled, 1400);
+      return await renderPdfPages(await fillWithTemplate(cards), 1400);
     } catch (err) {
       console.error('[report card template preview]', err);
       return null;
     }
-  }, [templateActive, rcTemplate, schoolInfo, lang]);
+  }, [templateActive, fillWithTemplate]);
 
   // Build the preview whenever a card is opened (or the template changes)
   useEffect(() => {
@@ -377,8 +429,7 @@ export default function ReportCards() {
     // otherwise fall back to the built-in hand-drawn layout below.
     if (rcTemplate?.is_enabled && rcTemplate.file_path && (rcTemplate.fields?.length ?? 0) > 0) {
       try {
-        const templateBytes = await fetch(mediaUrl(rcTemplate.file_path)).then(r => r.arrayBuffer());
-        const pdfBytes = await fillTemplatePdf(templateBytes, rcTemplate.fields as TemplateField[], cards, schoolInfo, lang);
+        const pdfBytes = await fillWithTemplate(cards);
         const blob = new Blob([pdfBytes.buffer as ArrayBuffer], { type: 'application/pdf' });
         const url = URL.createObjectURL(blob);
         const a = Object.assign(document.createElement('a'), { href: url, download: fname });
@@ -624,15 +675,6 @@ export default function ReportCards() {
     const n = tm.name === 'first' ? 1 : tm.name === 'second' ? 2 : 3;
     return lang === 'fr' ? `Trimestre ${n}` : `Term ${n}`;
   };
-
-  const selectedClass = classes.find(c => c.id === classId);
-  const selectedTerm  = terms.find(tm => tm.id === termId);
-
-  // Single-sequence cards are computed from the term's stored cards (term generation is untouched).
-  const displayCards = useMemo<RcRecord[]>(
-    () => (sequence ? toSequenceCards(reportCards, sequence) : reportCards),
-    [reportCards, sequence],
-  );
 
   const handleSequenceChange = (n: 0 | SequenceNumber) => {
     if (n === 0) { setSequence(0); return; }

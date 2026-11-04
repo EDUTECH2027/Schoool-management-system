@@ -11,17 +11,18 @@
 import { PDFDocument } from 'pdf-lib';
 import type { PDFPageProxy } from 'pdfjs-dist';
 import { api, mediaUrl } from '../api/client';
+import { detectStructure } from './templateStructureAnalysis';
 import {
   fillTemplatePdf,
   type SimpleFieldKey, type SimpleField, type TableField, type TableColumn, type TableColumnKey,
-  type TemplateField, type TemplateReportCard, type TemplateSchoolInfo,
+  type TemplateField, type TemplateReportCard, type TemplateSchoolInfo, type SubjectGridField,
 } from './reportCardTemplate';
 
 // ── Types ───────────────────────────────────────────────────────────────────
-interface Seg { text: string; norm: string; x: number; right: number; y: number; fs: number }
-interface Line { y: number; fs: number; segs: Seg[] }
-interface HRule { y: number; x0: number; x1: number }
-interface VRule { x: number; y0: number; y1: number }
+export interface Seg { text: string; norm: string; x: number; right: number; y: number; fs: number }
+export interface Line { y: number; fs: number; segs: Seg[] }
+export interface HRule { y: number; x0: number; x1: number }
+export interface VRule { x: number; y0: number; y1: number }
 
 export interface TemplateAnalysis {
   pageWidth: number; pageHeight: number;
@@ -338,7 +339,7 @@ function detectSimpleFields(lines: Line[], skipLineIdx: number, pageW: number, p
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
-export async function analyzeTemplatePdf(bytes: ArrayBuffer): Promise<TemplateAnalysis> {
+export async function analyzeTemplatePdf(bytes: ArrayBuffer, subjects: { id: string; name: string }[] = []): Promise<TemplateAnalysis> {
   const pdfjs = await loadPdfjs();
   const pdf = await pdfjs.getDocument({ data: bytes.slice(0) }).promise;
   const page = await pdf.getPage(1);
@@ -357,6 +358,15 @@ export async function analyzeTemplatePdf(bytes: ArrayBuffer): Promise<TemplateAn
   if (lines.length === 0 || page.rotate % 360 !== 0) return empty;
 
   const { hRules, vRules } = await extractRules(pdfjs, page, view[0], view[1]);
+  // Structured bulletin (pre-printed subject rows, column roles, group totals)? Understand it fully.
+  const structure = detectStructure({ lines, hRules, vRules, pageW, pageH, subjects });
+  if (structure) {
+    return {
+      pageWidth: pageW, pageHeight: pageH, fields: structure.fields, hasTextLayer: true,
+      detectedLabels: structure.labels, tableDetected: true, usedRules: true,
+    };
+  }
+
   const tableRes = detectTable(lines, hRules, vRules, pageW, pageH);
   const simple = detectSimpleFields(lines, tableRes ? tableRes.headerLineIdx : -1, pageW, pageH);
 
@@ -394,8 +404,20 @@ export async function validateTemplate(
   const warnings: string[] = [];
 
   if (!(pageWidth > 0 && pageHeight > 0)) errors.push('Page size could not be determined.');
+  const grid = fields.find((f): f is SubjectGridField => f.type === 'subject_grid');
   const table = fields.find((f): f is TableField => f.type === 'table');
-  if (!table) errors.push('No marks table was found.');
+  if (grid) {
+    // Structured template: rows are bound to subjects by name; check the grid itself.
+    if (!grid.columns.some(c => c.roles.includes('mark'))) errors.push('The subject table has no marks (NOTES) column.');
+    if (!grid.rows.length) errors.push('No subject rows were found in the template.');
+    const bound = grid.rows.filter(r => r.subjectId);
+    if (!bound.length) warnings.push('No template row is mapped to an application subject yet — no marks would be printed.');
+    const pending = bound.filter(r => r.confirmed === false).length;
+    if (pending) warnings.push(`${pending} uncertain subject match(es) are not filled until confirmed.`);
+    const ids = bound.map(r => r.subjectId);
+    if (new Set(ids).size !== ids.length) errors.push('Two template rows are mapped to the same subject.');
+    if (grid.rows.some(r => r.yTop < 0 || r.yTop > 1 || r.height <= 0)) errors.push('A subject row is positioned outside the page.');
+  } else if (!table) errors.push('No marks table was found.');
   else {
     if (!table.columns.some(c => c.key === 'subject_name')) errors.push('The marks table has no subject column.');
     if (table.columns.length < 3) errors.push('The marks table has too few columns.');
@@ -409,12 +431,19 @@ export async function validateTemplate(
   }
   const keys = new Set(fields.filter(f => f.type === 'text').map(f => (f as SimpleField).key));
   if (!keys.has('student_name')) warnings.push('Student name field was not detected — place it in the designer.');
-  if (!keys.has('class_name')) warnings.push('Class field was not detected.');
+  if (!keys.has('class_name') && !grid) warnings.push('Class field was not detected.');
 
   if (errors.length === 0) {
     try {
       const rows = table?.maxRows ?? 12;
-      const out = await fillTemplatePdf(bytes.slice(0), fields, [sampleCard(rows)], SAMPLE_SCHOOL, 'en');
+      const card = sampleCard(rows);
+      if (grid) {
+        // exercise the grid with entries for every bound subject
+        card.entries = grid.rows.filter(r => r.subjectId).map((r, i) => ({
+          subject_id: r.subjectId!, subject_name: r.subjectName ?? r.label, ca_score: 14, exam_score: 0, coefficient: r.printedCoef ?? 2, total_score: 10 + (i % 9), grade: 'B', remark: 'Good',
+        }));
+      }
+      const out = await fillTemplatePdf(bytes.slice(0), fields, [card], SAMPLE_SCHOOL, 'en', { classCards: [card], passMark: 10 });
       const doc = await PDFDocument.load(out);
       if (doc.getPageCount() !== 1) errors.push('Test rendering produced an unexpected page count.');
     } catch (err) {
@@ -433,6 +462,8 @@ export interface AnalysisOutcome {
   detectedLabels: number;
   tableDetected: boolean;
   validation: TemplateValidation | null;
+  // structured templates: how the printed subject rows were matched to application subjects
+  grid?: { rows: number; mapped: number; toVerify: number; unmapped: number };
 }
 
 const MIN_STEP_MS = 700; // let the user follow the progress; large PDFs naturally take longer
@@ -457,7 +488,8 @@ export async function analyzeAndApplyTemplate(
   }));
 
   onStep('layout');
-  const analysis = await timed(() => analyzeTemplatePdf(bytes));
+  const subjects = await api.getSubjects().catch(() => []);
+  const analysis = await timed(() => analyzeTemplatePdf(bytes, subjects.map(s => ({ id: s.id, name: s.name }))));
 
   onStep('mapping');
   await timed(async () => undefined);
@@ -471,7 +503,10 @@ export async function analyzeAndApplyTemplate(
   const validation = await timed(() => validateTemplate(bytes, analysis.fields, analysis.pageWidth, analysis.pageHeight));
 
   onStep('saving');
-  const enable = validation.ok;
+  const gridField = analysis.fields.find((f): f is SubjectGridField => f.type === 'subject_grid');
+  const toVerify = gridField ? gridField.rows.filter(r => r.subjectId && r.confirmed === false).length : 0;
+  // An uncertain subject match always needs a human decision, so such a template is never switched on automatically.
+  const enable = validation.ok && toVerify === 0;
   await timed(() => api.updateReportCardTemplate({
     is_enabled: enable,
     page_width: analysis.pageWidth,
@@ -484,5 +519,6 @@ export async function analyzeAndApplyTemplate(
     detectedLabels: analysis.detectedLabels.length,
     tableDetected: analysis.tableDetected,
     validation,
+    ...(gridField ? { grid: { rows: gridField.rows.length, mapped: gridField.rows.filter(r => r.subjectId).length, toVerify, unmapped: gridField.rows.filter(r => !r.subjectId).length } } : {}),
   };
 }

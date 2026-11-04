@@ -1895,6 +1895,13 @@ export default function Settings() {
           <div className={`text-xs rounded-lg px-3 py-2 space-y-1 ${rcOutcome.status === 'enabled' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
             <p className="font-medium">
               {rcOutcome.status === 'enabled' && lbl(`Template analysed and validated — ${rcOutcome.detectedLabels} fields and the marks table were placed. Check the preview in the designer if you wish.`, `Modèle analysé et validé — ${rcOutcome.detectedLabels} champs et le tableau des notes ont été placés. Vérifiez l’aperçu dans le concepteur si besoin.`)}
+              {rcOutcome.grid && (
+                <>
+                  {lbl(`Structured template recognised: ${rcOutcome.grid.rows} subject rows, ${rcOutcome.grid.mapped} matched to your subjects`, `Modèle structuré reconnu : ${rcOutcome.grid.rows} lignes de matières, ${rcOutcome.grid.mapped} associées à vos matières`)}
+                  {rcOutcome.grid.toVerify > 0 && lbl(` — ${rcOutcome.grid.toVerify} uncertain match(es) need your verification in the designer before they are filled.`, ` — ${rcOutcome.grid.toVerify} correspondance(s) incertaine(s) à vérifier dans le concepteur avant d’être remplie(s).`)}
+                  {rcOutcome.grid.toVerify === 0 && lbl('. ', '. ')}
+                </>
+              )}
               {rcOutcome.status === 'needs_review' && lbl('Template analysed, but it failed validation so it was NOT enabled. Open the designer to correct it.', 'Modèle analysé, mais la validation a échoué : il n’a PAS été activé. Ouvrez le concepteur pour le corriger.')}
               {rcOutcome.status === 'no_text' && lbl('No readable text was found in this PDF (it may be a scanned image). Open the designer to place fields manually.', 'Aucun texte lisible dans ce PDF (image numérisée ?). Ouvrez le concepteur pour placer les champs manuellement.')}
             </p>

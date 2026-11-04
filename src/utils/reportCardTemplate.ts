@@ -4,6 +4,11 @@
  * modification of this file, via any medium, is strictly prohibited.
  */
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import {
+  rowValues, groupAverage, groupRank, cardSummary,
+  type SubjectGridField, type TickField, type ImageField, type InfoField, type GridColumn, type GridRole, type FillContext, type CardSummary,
+} from './templateGrid';
+export type { SubjectGridField, TickField, ImageField, InfoField, FillContext } from './templateGrid';
 
 
 export type SimpleFieldKey =
@@ -11,7 +16,14 @@ export type SimpleFieldKey =
   | 'student_name' | 'student_number' | 'class_name' | 'academic_year' | 'term_label'
   | 'percentage' | 'sequence1_average' | 'sequence2_average'
   | 'class_position' | 'conduct' | 'attendance'
-  | 'class_teacher_comment' | 'head_teacher_comment' | 'generated_date';
+  | 'class_teacher_comment' | 'head_teacher_comment' | 'generated_date'
+  // student identity
+  | 'sex' | 'date_of_birth' | 'nui' | 'class_master' | 'enrollment'
+  // student performance / class profile (computed with the existing report-card engine)
+  | 'total_marks' | 'total_coef' | 'student_average' | 'grade' | 'rank'
+  | 'class_highest' | 'class_lowest' | 'class_average' | 'class_presents' | 'class_passed' | 'success_rate'
+  // discipline / observation
+  | 'absences_total' | 'absences_justified' | 'absences_unjustified' | 'general_observation';
 
 export interface SimpleField {
   type: 'text';
@@ -21,6 +33,9 @@ export interface SimpleField {
   fontSize: number;
   align: 'left' | 'center' | 'right';
   bold?: boolean;
+  boxWidth?: number;  // fraction of page width available for the value; longer text is shrunk / wrapped, never overlapping
+  maxLines?: number;  // wrap into at most this many lines when boxWidth is set
+  review?: string;    // set by the analyser when the detection is uncertain: shown to the administrator
 }
 
 export type TableColumnKey = 'subject_name' | 'ca_score' | 'exam_score' | 'coefficient' | 'total_score' | 'grade' | 'remark';
@@ -44,7 +59,7 @@ export interface TableField {
   maxRows?: number;     // printed body rows available in the template; more rows are squeezed to fit
 }
 
-export type TemplateField = SimpleField | TableField;
+export type TemplateField = SimpleField | TableField | SubjectGridField | TickField | ImageField | InfoField;
 
 export const SIMPLE_FIELD_DEFS: { key: SimpleFieldKey; labelEn: string; labelFr: string }[] = [
   { key: 'school_name',           labelEn: 'School Name',              labelFr: "Nom de l'école" },
@@ -65,6 +80,26 @@ export const SIMPLE_FIELD_DEFS: { key: SimpleFieldKey; labelEn: string; labelFr:
   { key: 'class_teacher_comment', labelEn: "Class Teacher's Comment",  labelFr: 'Appréciation du professeur' },
   { key: 'head_teacher_comment',  labelEn: "Head Teacher's Comment",   labelFr: 'Appréciation du directeur' },
   { key: 'generated_date',        labelEn: 'Date Generated',           labelFr: 'Date de génération' },
+  { key: 'sex',                   labelEn: 'Sex / Gender',             labelFr: 'Sexe' },
+  { key: 'date_of_birth',         labelEn: 'Date of Birth',            labelFr: 'Date de naissance' },
+  { key: 'nui',                   labelEn: 'Unique Identifier (NUI)',  labelFr: 'Identifiant unique' },
+  { key: 'class_master',          labelEn: 'Class Master',             labelFr: 'Professeur principal' },
+  { key: 'enrollment',            labelEn: 'Class Enrollment',         labelFr: 'Effectif' },
+  { key: 'total_marks',           labelEn: 'Total Marks (ΣN×C)',       labelFr: 'Total des points' },
+  { key: 'total_coef',            labelEn: 'Total Coefficients',       labelFr: 'Total des coefficients' },
+  { key: 'student_average',       labelEn: 'Student Average',          labelFr: "Moyenne de l'élève" },
+  { key: 'grade',                 labelEn: 'Grade',                    labelFr: 'Mention' },
+  { key: 'rank',                  labelEn: 'Rank',                     labelFr: 'Rang' },
+  { key: 'class_highest',         labelEn: 'Class Highest Average',    labelFr: 'Moyenne la plus forte' },
+  { key: 'class_lowest',          labelEn: 'Class Lowest Average',     labelFr: 'Moyenne la plus faible' },
+  { key: 'class_average',         labelEn: 'Class Average',            labelFr: 'Moyenne de la classe' },
+  { key: 'class_presents',        labelEn: 'Students Evaluated',       labelFr: 'Présents' },
+  { key: 'class_passed',          labelEn: 'Number Passed',            labelFr: 'Nombre de reçus' },
+  { key: 'success_rate',          labelEn: 'Success Rate',             labelFr: 'Taux de réussite' },
+  { key: 'absences_total',        labelEn: 'Total Absences (days)',    labelFr: 'Total des absences (jours)' },
+  { key: 'absences_justified',    labelEn: 'Justified Absences',       labelFr: 'Absences justifiées' },
+  { key: 'absences_unjustified',  labelEn: 'Unjustified Absences',     labelFr: 'Absences non justifiées' },
+  { key: 'general_observation',   labelEn: 'General Observation',      labelFr: 'Observation générale' },
 ];
 
 export const TABLE_COLUMN_DEFS: { key: TableColumnKey; labelEn: string; labelFr: string }[] = [
@@ -110,6 +145,7 @@ export function defaultSimpleField(key: SimpleFieldKey): SimpleField {
 
 // ── Data the template can draw from ─────────────────────────────────────────
 export interface TemplateEntry {
+  subject_id?: string;
   subject_name: string; ca_score: number; exam_score: number | null;
   coefficient: number; total_score: number; grade: string; remark: string;
 }
@@ -124,6 +160,11 @@ export interface TemplateReportCard {
   entries: TemplateEntry[];
   // Set for single-sequence cards (1, 3 or 5): only the first mark column is meaningful.
   sequence?: number;
+  // Student identity for structured templates (all optional; a field with no value is left blank)
+  gender?: string | null; date_of_birth?: string | null; nui?: string | null;
+  class_master?: string | null; repeater?: boolean | null; days_absent?: number;
+  justified_absences?: number; unjustified_absences?: number;
+  photo?: { bytes: Uint8Array; mime: string } | null;
 }
 
 export interface TemplateSchoolInfo {
@@ -136,8 +177,36 @@ export function termLabelOf(termName: string, lang: 'en' | 'fr', sequence?: numb
   return lang === 'fr' ? `Trimestre ${n}` : `Term ${n}`;
 }
 
-export function resolveSimpleValue(key: SimpleFieldKey, rc: TemplateReportCard, school: TemplateSchoolInfo, lang: 'en' | 'fr'): string {
+const fmtNum = (n: number | null | undefined, suffix = '') => (n == null || Number.isNaN(n) ? '' : `${n}${suffix}`);
+
+export function resolveSimpleValue(key: SimpleFieldKey, rc: TemplateReportCard, school: TemplateSchoolInfo, lang: 'en' | 'fr', ctx?: FillContext): string {
+  const sum: CardSummary | null = ctx ? cardSummary(rc, ctx) : null;
   switch (key) {
+    case 'sex':                   return rc.gender === 'male' ? 'M' : rc.gender === 'female' ? 'F' : (rc.gender ? rc.gender[0].toUpperCase() : '');
+    case 'date_of_birth': {
+      const d = rc.date_of_birth ? new Date(rc.date_of_birth) : null;
+      return d && !Number.isNaN(d.getTime()) ? d.toLocaleDateString('en-GB') : (rc.date_of_birth || '');
+    }
+    case 'nui':                   return rc.nui || '';
+    case 'class_master':          return rc.class_master || '';
+    case 'enrollment':            return fmtNum(sum?.enrollment ?? rc.out_of);
+    case 'total_marks':           return fmtNum(sum?.totalMarks);
+    case 'total_coef':            return fmtNum(sum?.totalCoef);
+    case 'student_average':       return fmtNum(rc.percentage);
+    case 'grade':                 return sum?.grade ?? '';
+    case 'rank':                  return rc.class_position != null ? String(rc.class_position) : '';
+    case 'class_highest':         return fmtNum(sum?.classHighest);
+    case 'class_lowest':          return fmtNum(sum?.classLowest);
+    case 'class_average':         return fmtNum(sum?.classAverage);
+    case 'class_presents':        return fmtNum(sum?.presents);
+    case 'class_passed':          return fmtNum(sum?.passed);
+    case 'success_rate':          return fmtNum(sum?.successRate, '%');
+    case 'absences_justified':    return rc.justified_absences != null ? String(rc.justified_absences) : '';
+    case 'absences_unjustified':  return rc.unjustified_absences != null ? String(rc.unjustified_absences) : '';
+    case 'absences_total':
+      if (rc.justified_absences != null || rc.unjustified_absences != null) return String((rc.justified_absences ?? 0) + (rc.unjustified_absences ?? 0));
+      return rc.days_absent != null ? String(rc.days_absent) : '';
+    case 'general_observation':   return rc.class_teacher_comment || rc.head_teacher_comment || '';
     case 'school_name':           return school.name || '';
     case 'school_motto':          return school.motto || '';
     case 'school_address':        return school.address || '';
@@ -288,13 +357,119 @@ function drawTableField(page: PDFPage, field: TableField, rc: TemplateReportCard
   });
 }
 
+// Replace characters Helvetica (WinAnsi) cannot encode so a name like "Ŋgu" never aborts the whole PDF.
+function safeText(text: string, font: PDFFont): string {
+  const supported = new Set(font.getCharacterSet());
+  return Array.from(text).map(ch => (supported.has(ch.codePointAt(0) ?? 0) ? ch : '?')).join('');
+}
+
+// Draws one line, shrinking the font (down to minSize) and finally truncating so it never leaves its box.
+function drawFitted(page: PDFPage, text: string, font: PDFFont, x: number, baselineY: number, size: number, maxWidth: number, align: 'left' | 'center' | 'right', color: ReturnType<typeof rgb>, minSize = 5.5) {
+  let t = safeText(text, font);
+  let fs = size;
+  while (fs > minSize && font.widthOfTextAtSize(t, fs) > maxWidth) fs -= 0.25;
+  while (t.length > 1 && font.widthOfTextAtSize(t, fs) > maxWidth) t = t.slice(0, -1);
+  const w = font.widthOfTextAtSize(t, fs);
+  const dx = align === 'center' ? (maxWidth - w) / 2 : align === 'right' ? maxWidth - w : 0;
+  page.drawText(t, { x: x + dx, y: baselineY, size: fs, font, color });
+}
+
+// Word-wrap into at most maxLines lines inside maxWidth, shrinking the font until it fits.
+function drawWrapped(page: PDFPage, text: string, font: PDFFont, x: number, topY: number, size: number, maxWidth: number, maxLines: number, color: ReturnType<typeof rgb>) {
+  const clean = safeText(text, font);
+  let fs = size;
+  let lines: string[] = [];
+  for (; fs >= 5.5; fs -= 0.5) {
+    lines = []; let cur = '';
+    for (const word of clean.split(/\s+/)) {
+      const test = cur ? `${cur} ${word}` : word;
+      if (font.widthOfTextAtSize(test, fs) <= maxWidth) cur = test; else { if (cur) lines.push(cur); cur = word; }
+    }
+    if (cur) lines.push(cur);
+    if (lines.length <= maxLines) break;
+  }
+  lines.slice(0, maxLines).forEach((ln, i) => page.drawText(ln, { x, y: topY - fs - i * fs * 1.2, size: fs, font, color }));
+}
+
+const ROLE_TEXT = (role: GridRole, v: NonNullable<ReturnType<typeof rowValues>>): string => {
+  switch (role) {
+    case 'mark': return String(v.mark);
+    case 'coef': return String(v.coef);
+    case 'nc': return String(v.nc);
+    case 'rank': return String(v.rank);
+    case 'grade': return v.grade;
+    case 'min': return String(v.min);
+    case 'max': return String(v.max);
+    case 'remark': return v.remark;
+    case 'visa': return ''; // the signature / validation area is preserved empty
+  }
+};
+
+function drawSubjectGrid(page: PDFPage, grid: SubjectGridField, rc: TemplateReportCard, pw: number, ph: number, font: PDFFont, boldFont: PDFFont, ctx: FillContext) {
+  const color = rgb(0.06, 0.09, 0.16);
+  for (const row of grid.rows) {
+    const v = rowValues(rc, row, ctx);
+    if (!v) continue; // no mark for this subject (or the row is not bound to a subject): stays blank
+    const top = row.yTop * ph, h = row.height * ph;
+    for (const col of grid.columns as GridColumn[]) {
+      if (col.printed && col.roles.every(r => r === 'coef')) continue; // coefficient already printed on the template
+      const lines = col.roles.length;
+      col.roles.forEach((role, i) => {
+        const text = ROLE_TEXT(role, v);
+        if (!text) return;
+        const lineH = h / lines;
+        const size = Math.min(grid.fontSize, lineH * 0.78, lines > 1 ? 6.5 : 99);
+        const baselineScreen = top + lineH * i + lineH / 2 + size * 0.35;
+        drawFitted(page, text, role === 'grade' ? boldFont : font, col.x * pw + 1.5, ph - baselineScreen, size, col.width * pw - 3, col.align, color);
+      });
+    }
+  }
+  grid.groups.forEach((g, gi) => {
+    const avg = groupAverage(rc, grid, gi);
+    const rank = groupRank(rc, grid, gi, ctx);
+    for (const slot of g.slots) {
+      const text = slot.kind === 'avg' ? (avg != null ? String(avg) : '') : (rank != null ? String(rank) : '');
+      if (!text) continue;
+      const size = Math.min(grid.fontSize + 1, g.height * ph * 0.7);
+      const baselineScreen = g.yTop * ph + (g.height * ph) / 2 + size * 0.35;
+      drawFitted(page, text, boldFont, slot.x * pw, ph - baselineScreen, size, slot.width * pw, 'left', color);
+    }
+  });
+}
+
+function drawTick(page: PDFPage, tick: TickField, rc: TemplateReportCard, pw: number, ph: number, boldFont: PDFFont) {
+  if (rc.repeater == null) return; // unknown: neither box is ticked
+  const at = rc.repeater ? tick.yes : tick.no;
+  const size = 9;
+  const w = boldFont.widthOfTextAtSize('X', size);
+  page.drawText('X', { x: at.x * pw - w / 2, y: ph - at.y * ph - size * 0.35, size, font: boldFont, color: rgb(0.06, 0.09, 0.16) });
+}
+
+async function drawPhoto(outDoc: PDFDocument, page: PDFPage, img: ImageField, rc: TemplateReportCard, pw: number, ph: number) {
+  if (!rc.photo) return;
+  try {
+    const b = rc.photo.bytes;
+    const isPng = b[0] === 0x89 && b[1] === 0x50;
+    const image = isPng ? await outDoc.embedPng(b) : await outDoc.embedJpg(b);
+    const boxW = img.width * pw, boxH = img.height * ph;
+    const scale = Math.min(boxW / image.width, boxH / image.height); // fit inside the box, keep the aspect ratio
+    const w = image.width * scale, h = image.height * scale;
+    page.drawImage(image, { x: img.x * pw + (boxW - w) / 2, y: ph - img.y * ph - boxH + (boxH - h) / 2, width: w, height: h });
+  } catch (err) {
+    console.error('[template] could not embed the student photo', err); // unsupported image: leave the box empty
+  }
+}
+
 export async function fillTemplatePdf(
   templateBytes: ArrayBuffer,
   fields: TemplateField[],
   cards: TemplateReportCard[],
   school: TemplateSchoolInfo,
   lang: 'en' | 'fr',
+  context?: FillContext,
 ): Promise<Uint8Array> {
+  // Without an explicit class context the given cards are the class (single-card previews pass the whole class).
+  const ctx: FillContext = context ?? { classCards: cards, passMark: 10 };
   const srcDoc = await PDFDocument.load(templateBytes);
   const outDoc = await PDFDocument.create();
   const font = await outDoc.embedFont(StandardFonts.Helvetica);
@@ -311,8 +486,19 @@ export async function fillTemplatePdf(
         drawTableField(copiedPage, field, rc, pageWidth, pageHeight, font, boldFont, lang);
         continue;
       }
-      const value = resolveSimpleValue(field.key, rc, school, lang);
+      if (field.type === 'info') continue; // notes for the review screen only
+      if (field.type === 'subject_grid') { drawSubjectGrid(copiedPage, field, rc, pageWidth, pageHeight, font, boldFont, ctx); continue; }
+      if (field.type === 'tick') { drawTick(copiedPage, field, rc, pageWidth, pageHeight, boldFont); continue; }
+      if (field.type === 'image') { await drawPhoto(outDoc, copiedPage, field, rc, pageWidth, pageHeight); continue; }
+      const value = resolveSimpleValue(field.key, rc, school, lang, ctx);
       const useFont = field.bold ? boldFont : font;
+      if (field.boxWidth) {
+        // Structured templates: keep the value inside its box (wrap or shrink; never overlap neighbours).
+        const boxW = field.boxWidth * pageWidth;
+        if ((field.maxLines ?? 1) > 1) drawWrapped(copiedPage, value, useFont, field.x * pageWidth, pageHeight - field.y * pageHeight, field.fontSize, boxW, field.maxLines ?? 1, color);
+        else drawFitted(copiedPage, value, useFont, field.x * pageWidth, pageHeight - field.y * pageHeight - field.fontSize, field.fontSize, boxW, field.align, color);
+        continue;
+      }
       const textWidth = useFont.widthOfTextAtSize(value, field.fontSize);
       let x = field.x * pageWidth;
       if (field.align === 'center') x -= textWidth / 2;

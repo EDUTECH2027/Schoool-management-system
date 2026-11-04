@@ -379,6 +379,8 @@ export const api = {
     request<ReportCard>('PATCH', `/report-cards/${id}/status`, { status }),
 
   // ── Report Card PDF Template ────────────────────────────────────
+  getReportCardStudentExtras: (p: { classId: string; termId?: string }) =>
+    request<{ studentId: string; repeater: boolean | null; justifiedAbsences: number; unjustifiedAbsences: number }[]>('GET', `/report-cards/student-extras${toQS(p as Record<string, string>)}`),
   getReportCardTemplate:    () => request<ReportCardTemplate>('GET', '/report-card-template'),
   uploadReportCardTemplate: (file: File) => {
     const fd = new FormData();
