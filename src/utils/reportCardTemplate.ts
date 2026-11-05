@@ -476,7 +476,9 @@ export async function fillTemplatePdf(
   context?: FillContext,
 ): Promise<Uint8Array> {
   // Without an explicit class context the given cards are the class (single-card previews pass the whole class).
-  const ctx: FillContext = context ?? { classCards: cards, passMark: 10 };
+  const base: FillContext = context ?? { classCards: cards, passMark: 10 };
+  const gridField = fields.find((f): f is SubjectGridField => f.type === 'subject_grid');
+  const ctx: FillContext = gridField ? { ...base, grid: gridField } : base;
   const srcDoc = await PDFDocument.load(templateBytes);
   const outDoc = await PDFDocument.create();
   const font = await outDoc.embedFont(StandardFonts.Helvetica);

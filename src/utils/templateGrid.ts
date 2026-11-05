@@ -157,8 +157,12 @@ export function competitionRank(values: number[], mine: number): number {
 
 export interface FillContext {
   classCards: TemplateReportCard[]; // every card of the class + period, for ranks / min / max / class profile
+  grid?: SubjectGridField;          // the template's grid: its printed coefficients override the subject's own
   passMark: number;                 // average at or above which a student passes (the end-of-year pass mark)
 }
+
+// The coefficient printed on the template row is authoritative (N*C and totals must agree with what the sheet shows).
+const coefOf = (e: TemplateEntry, row?: GridRow): number => row?.printedCoef ?? e.coefficient;
 
 // A row is only filled when it is bound to a subject AND that binding is trusted (confirmed !== false).
 const entryFor = (card: TemplateReportCard, row: GridRow): TemplateEntry | undefined =>
@@ -171,7 +175,8 @@ export function groupAverage(card: TemplateReportCard, grid: SubjectGridField, g
     if (row.group !== group) continue;
     const e = entryFor(card, row);
     if (!e) continue;
-    nc += e.total_score * e.coefficient; coef += e.coefficient;
+    const c = coefOf(e, row);
+    nc += e.total_score * c; coef += c;
   }
   return coef > 0 ? round2(nc / coef) : null;
 }
@@ -185,7 +190,8 @@ export function groupTotals(card: TemplateReportCard, grid: SubjectGridField, gr
     if (row.group !== group) continue;
     const e = entryFor(card, row);
     if (!e) continue;
-    notes += e.total_score; nc += e.total_score * e.coefficient; coef += e.coefficient; n++;
+    const c = coefOf(e, row);
+    notes += e.total_score; nc += e.total_score * c; coef += c; n++;
   }
   return n ? { notes: round2(notes), nc: round2(nc), coef } : null;
 }
@@ -200,7 +206,7 @@ export function rowValues(card: TemplateReportCard, row: GridRow, ctx: FillConte
     .filter((x): x is TemplateEntry => !!x)
     .map(x => x.total_score);
   return {
-    mark: round2(e.total_score), coef: e.coefficient, nc: round2(e.total_score * e.coefficient),
+    mark: round2(e.total_score), coef: coefOf(e, row), nc: round2(e.total_score * coefOf(e, row)),
     rank: competitionRank(peers, e.total_score),
     grade: e.grade || gradeFor(e.total_score).grade,
     min: peers.length ? Math.min(...peers) : e.total_score,
@@ -225,8 +231,10 @@ export interface CardSummary {
 }
 
 export function cardSummary(card: TemplateReportCard, ctx: FillContext): CardSummary {
-  const totalCoef = card.entries.reduce((s, e) => s + e.coefficient, 0);
-  const totalMarks = card.entries.reduce((s, e) => s + e.total_score * e.coefficient, 0);
+  const printed = new Map((ctx.grid?.rows ?? []).filter(r => r.subjectId && r.printedCoef != null && r.confirmed !== false).map(r => [r.subjectId as string, r.printedCoef as number]));
+  const cf = (e: TemplateEntry) => (e.subject_id ? printed.get(e.subject_id) : undefined) ?? e.coefficient;
+  const totalCoef = card.entries.reduce((s, e) => s + cf(e), 0);
+  const totalMarks = card.entries.reduce((s, e) => s + e.total_score * cf(e), 0);
   const avgs = ctx.classCards.map(c => c.percentage);
   const passed = avgs.filter(a => a >= ctx.passMark).length;
   return {
