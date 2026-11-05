@@ -96,7 +96,23 @@ async function withAuthRetry(
   return res;
 }
 
-async function request<T>(method: string, path: string, body?: unknown, explicitToken?: string): Promise<T> {
+// Identical GETs issued at the same moment (several components asking for classes, subjects, ...) share one
+// network call. Only in-flight requests are shared — nothing is kept afterwards, so data is never stale —
+// and every caller gets its own copy so one cannot mutate what another received.
+const inflightGets = new Map<string, Promise<unknown>>();
+
+function request<T>(method: string, path: string, body?: unknown, explicitToken?: string): Promise<T> {
+  if (method !== 'GET' || explicitToken) return requestOnce<T>(method, path, body, explicitToken);
+  const key = `${getToken() ?? ''}|${path}`;
+  let shared = inflightGets.get(key);
+  if (!shared) {
+    shared = requestOnce<T>(method, path, body, explicitToken).finally(() => inflightGets.delete(key));
+    inflightGets.set(key, shared);
+  }
+  return (shared as Promise<T>).then(v => (v !== null && typeof v === 'object' ? structuredClone(v) : v));
+}
+
+async function requestOnce<T>(method: string, path: string, body?: unknown, explicitToken?: string): Promise<T> {
   const doFetch = () => {
     const bearer = explicitToken ?? getToken();
     return fetch(`${BASE}/api${path}`, {

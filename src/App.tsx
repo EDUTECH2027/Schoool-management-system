@@ -3,7 +3,7 @@
  * Proprietary and confidential. Unauthorized copying, distribution or
  * modification of this file, via any medium, is strictly prohibited.
  */
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -24,12 +24,29 @@ const StudentRoutes  = lazy(() => import('./routes/StudentRoutes'));
 const ParentRoutes   = lazy(() => import('./routes/ParentRoutes'));
 const PlatformRoutes = lazy(() => import('./routes/PlatformRoutes'));
 
+// While the sign-in form is on screen the browser is idle: fetch the (small) role route trees now so the
+// dashboard shows as soon as the login call returns instead of waiting for another download.
+function usePrefetchRoutes(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const run = () => {
+      void import('./routes/AdminRoutes');
+      void import('./routes/TeacherRoutes');
+      void import('./routes/StudentRoutes');
+      void import('./routes/ParentRoutes');
+    };
+    const w = window as Window & { requestIdleCallback?: (cb: () => void) => number };
+    if (w.requestIdleCallback) w.requestIdleCallback(run); else setTimeout(run, 1500);
+  }, [enabled]);
+}
+
 function RouteLoadingFallback() {
   return <LoadingScreen variant="screen" />;
 }
 
 function AppRoutes() {
   const { user, mfaToken, enrollToken } = useAuth();
+  usePrefetchRoutes(!user);
 
   const activateToken = new URLSearchParams(window.location.search).get('activate');
   if (activateToken && !user) return <ActivateAccount token={activateToken} />;
