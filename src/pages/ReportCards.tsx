@@ -243,6 +243,9 @@ export default function ReportCards() {
   const [printList,   setPrintList]   = useState<RcRecord[] | null>(null);
   const [annualSummary, setAnnualSummary] = useState<AnnualSummary | null>(null);
   const [rcTemplate,  setRcTemplate]  = useState<ReportCardTemplate | null>(null);
+  // The template is fetched asynchronously: until it has loaded we must not fall back to the built-in layout.
+  const [templateLoaded, setTemplateLoaded] = useState(false);
+  const [templateError, setTemplateError] = useState<string | null>(null);
   // Template-based preview / print: the uploaded PDF filled with the card's data, rendered to images.
   const [previewImages, setPreviewImages] = useState<string[] | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -316,9 +319,13 @@ export default function ReportCards() {
   const renderWithTemplate = useCallback(async (cards: RcRecord[]): Promise<string[] | null> => {
     if (!templateActive || cards.length === 0) return null;
     try {
-      return await renderPdfPages(await fillWithTemplate(cards), 1400);
+      const pages = await renderPdfPages(await fillWithTemplate(cards), 1400);
+      setTemplateError(null);
+      return pages;
     } catch (err) {
       console.error('[report card template preview]', err);
+      // An enabled template is the only layout: report the problem instead of silently showing the built-in card.
+      setTemplateError(err instanceof Error ? err.message : String(err));
       return null;
     }
   }, [templateActive, fillWithTemplate]);
@@ -335,7 +342,14 @@ export default function ReportCards() {
     return () => { cancelled = true; };
   }, [previewRc, renderWithTemplate]);
 
-  useEffect(() => { api.getReportCardTemplate().then(setRcTemplate).catch(() => {}); }, []);
+  useEffect(() => {
+    let cancelled = false;
+    const load = (retry: boolean) => api.getReportCardTemplate()
+      .then(t => { if (!cancelled) { setRcTemplate(t); setTemplateLoaded(true); } })
+      .catch(() => { if (retry) setTimeout(() => load(false), 1500); else if (!cancelled) setTemplateLoaded(true); });
+    load(true);
+    return () => { cancelled = true; };
+  }, []);
 
   // Fetch the Final Annual Average whenever a student's report card is previewed
   useEffect(() => {
@@ -409,6 +423,7 @@ export default function ReportCards() {
   const handlePrint = async (rcs: RcRecord[]) => {
     // With an active template, print the template-based pages; otherwise the built-in layout.
     const images = await renderWithTemplate(rcs);
+    if (templateActive && !images) { alert(lang === 'fr' ? 'Le modèle de bulletin n’a pas pu être appliqué. Réessayez ou vérifiez le modèle dans les paramètres.' : 'The report card template could not be applied. Please retry or check the template in Settings.'); return; }
     if (images) await Promise.all(images.map(src => { const img = new Image(); img.src = src; return img.decode().catch(() => undefined); }));
     setPrintImages(images);
     setPrintList(rcs);
@@ -440,7 +455,9 @@ export default function ReportCards() {
         return;
       } catch (err) {
         console.error('[report card template]', err);
-        // fall through to the default generator below
+        // The template is the only layout once enabled: never silently switch to the built-in one.
+        alert(lang === 'fr' ? 'Le modèle de bulletin n’a pas pu être appliqué. Réessayez ou vérifiez le modèle dans les paramètres.' : 'The report card template could not be applied. Please retry or check the template in Settings.');
+        return;
       }
     }
 
@@ -753,7 +770,7 @@ export default function ReportCards() {
               </div>
             </div>
             <div className="overflow-y-auto max-h-[80vh] p-2">
-              {templateActive && previewLoading ? (
+              {!templateLoaded || (templateActive && (previewLoading || (!previewImages && !templateError))) ? (
                 <div className="flex items-center justify-center py-24">
                   <div className="w-7 h-7 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
                 </div>
@@ -762,6 +779,10 @@ export default function ReportCards() {
                   {previewImages.map((src, i) => (
                     <img key={i} src={src} alt={previewRc.student_name} className="w-full h-auto rounded bg-white shadow-sm" />
                   ))}
+                </div>
+              ) : templateActive && templateError ? (
+                <div className="m-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+                  {lang === 'fr' ? 'Le modèle de bulletin n’a pas pu être appliqué : ' : 'The report card template could not be applied: '}{templateError}
                 </div>
               ) : (
                 <PrintCard rc={previewRc} />
