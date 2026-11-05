@@ -5,7 +5,7 @@
  */
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
 import {
-  rowValues, groupAverage, groupRank, cardSummary,
+  rowValues, groupAverage, groupRank, groupTotals, cardSummary,
   type SubjectGridField, type TickField, type ImageField, type InfoField, type GridColumn, type GridRole, type FillContext, type CardSummary,
 } from './templateGrid';
 export type { SubjectGridField, TickField, ImageField, InfoField, FillContext } from './templateGrid';
@@ -428,12 +428,18 @@ function drawSubjectGrid(page: PDFPage, grid: SubjectGridField, rc: TemplateRepo
   grid.groups.forEach((g, gi) => {
     const avg = groupAverage(rc, grid, gi);
     const rank = groupRank(rc, grid, gi, ctx);
+    const tot = groupTotals(rc, grid, gi);
     for (const slot of g.slots) {
-      const text = slot.kind === 'avg' ? (avg != null ? String(avg) : '') : (rank != null ? String(rank) : '');
+      const text = slot.kind === 'avg' ? (avg != null ? String(avg) : '')
+        : slot.kind === 'rank' ? (rank != null ? String(rank) : '')
+        : slot.kind === 'notes' ? (tot ? String(tot.notes) : '')
+        : slot.kind === 'nc' ? (tot ? String(tot.nc) : '')
+        : (tot ? String(tot.coef) : '');
       if (!text) continue;
       const size = Math.min(grid.fontSize + 1, g.height * ph * 0.7);
       const baselineScreen = g.yTop * ph + (g.height * ph) / 2 + size * 0.35;
-      drawFitted(page, text, boldFont, slot.x * pw, ph - baselineScreen, size, slot.width * pw, 'left', color);
+      const inCol = slot.kind === 'notes' || slot.kind === 'nc' || slot.kind === 'coef'; // Σ cells sit centred in their column
+      drawFitted(page, text, boldFont, inCol ? slot.x * pw + 1.5 : slot.x * pw, ph - baselineScreen, size, inCol ? slot.width * pw - 3 : slot.width * pw, inCol ? 'center' : 'left', color);
     }
   });
 }

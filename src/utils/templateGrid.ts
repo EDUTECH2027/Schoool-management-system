@@ -33,7 +33,8 @@ export interface GridRow {
   printedCoef: number | null;    // coefficient printed on the template, if any
 }
 
-export interface GridSlot { kind: 'avg' | 'rank'; x: number; width: number }
+// notes / nc / coef = the Σ cells of a group's "Total" row (Σ NOTES, Σ N*C, Σ COEF); avg = Σ N*C / Σ COEF
+export interface GridSlot { kind: 'avg' | 'rank' | 'notes' | 'nc' | 'coef'; x: number; width: number }
 
 export interface GridGroup {
   name: string;                  // "ART SUBJECTS"
@@ -173,6 +174,20 @@ export function groupAverage(card: TemplateReportCard, grid: SubjectGridField, g
     nc += e.total_score * e.coefficient; coef += e.coefficient;
   }
   return coef > 0 ? round2(nc / coef) : null;
+}
+
+export interface GroupTotals { notes: number; nc: number; coef: number }
+
+// Σ NOTES, Σ (NOTES × COEF) and Σ COEF over the rows of one group that carry a mark.
+export function groupTotals(card: TemplateReportCard, grid: SubjectGridField, group: number): GroupTotals | null {
+  let notes = 0, nc = 0, coef = 0, n = 0;
+  for (const row of grid.rows) {
+    if (row.group !== group) continue;
+    const e = entryFor(card, row);
+    if (!e) continue;
+    notes += e.total_score; nc += e.total_score * e.coefficient; coef += e.coefficient; n++;
+  }
+  return n ? { notes: round2(notes), nc: round2(nc), coef } : null;
 }
 
 export interface RowValues { mark: number; coef: number; nc: number; rank: number; grade: string; min: number; max: number; remark: string }

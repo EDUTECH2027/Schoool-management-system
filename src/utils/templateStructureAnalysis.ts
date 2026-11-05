@@ -253,6 +253,13 @@ export function detectStructure(input: StructureInput): StructureResult | null {
       const x1 = under ? under.x1 - 2 : tableRight - 4;
       slots.push({ kind: 'rank', x: fx(x0), width: fx(Math.max(12, x1 - x0)) });
     }
+    // Σ cells of the Total row: under NOTES / N*C (and COEF when the coefficients are not printed), only where the cell is empty
+    const empty = (c: GridColumn) => !band.some(s => s.right > c.x * pageW + 1 && s.x < (c.x + c.width) * pageW - 1);
+    for (const c of cols) {
+      if (c.roles.length !== 1) continue;
+      const kind = c.roles[0] === 'mark' ? 'notes' : c.roles[0] === 'nc' ? 'nc' : c.roles[0] === 'coef' && !c.printed ? 'coef' : null;
+      if (kind && empty(c)) slots.push({ kind, x: c.x, width: c.width });
+    }
     const totalNumSeg = band.find(s => num(s.text) !== null && s.x > t.right && s.x < (avgSeg?.x ?? t.right + 120));
     return { name: groupTitles[gi].text, yTop: fy(top), height: (top - bottom) / pageH, slots, printedTotalCoef: totalNumSeg ? num(totalNumSeg.text) : null };
   });
