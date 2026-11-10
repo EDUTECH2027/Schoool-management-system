@@ -122,7 +122,7 @@ export default function Classes() {
                   <div className="border-t border-slate-100 pt-3 space-y-1.5">
                     <div className="flex items-center gap-2 text-sm">
                       <Users size={13} className="text-slate-400" />
-                      <span className="text-slate-600 truncate">{cls.classTeacherName || '—'}</span>
+                      <span className="text-slate-600 truncate">{cls.classTeacherName || ''}</span>
                     </div>
                     <div className="flex items-center justify-end">
                       <span className="text-indigo-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
@@ -175,7 +175,7 @@ export default function Classes() {
                     >
                       <td className="px-5 py-3 font-medium text-slate-800">{cls.name}</td>
                       <td className="px-5 py-3 text-slate-600">{cls.gradeLevelName}</td>
-                      <td className="px-5 py-3 text-slate-600">{cls.classTeacherName || '—'}</td>
+                      <td className="px-5 py-3 text-slate-600">{cls.classTeacherName || ''}</td>
                       <td className="px-5 py-3 text-slate-500">{cls.room}</td>
                       <td className="px-5 py-3 text-center font-semibold text-slate-800">{cls.enrolled}</td>
                       <td className="px-5 py-3 text-center text-slate-500">{cls.capacity}</td>

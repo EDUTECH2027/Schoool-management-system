@@ -374,7 +374,7 @@ export default function Settings() {
       // lose the upload — the manual designer still works on the stored file.
       if (updated.file_path) {
         try {
-          const outcome = await analyzeAndApplyTemplate(updated.file_path, setRcStep);
+          const outcome = await analyzeAndApplyTemplate(updated.file_path, setRcStep, updated.file_name);
           setRcOutcome(outcome);
           setRcTemplateEnabled(outcome.status === 'enabled');
           setRcTemplateHasFields(outcome.status !== 'no_text');
@@ -1344,7 +1344,7 @@ export default function Settings() {
                   <span className="flex-1 text-sm text-slate-800 font-medium">{c.name}</span>
                   <span className="text-xs text-slate-500 w-16 text-center">{c.room}</span>
                   <span className="text-xs text-slate-400 w-20 text-center">{c.capacity} {lbl('seats', 'places')}</span>
-                  <span className="text-xs text-slate-500 truncate max-w-[130px]">{c.class_teacher_name || '—'}</span>
+                  <span className="text-xs text-slate-500 truncate max-w-[130px]">{c.class_teacher_name || ''}</span>
                   <button onClick={() => startEditClass(c)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors" title={t.common.edit}>
                     <Pencil size={14} />
                   </button>
@@ -1880,6 +1880,7 @@ export default function Settings() {
                   mapping:    lbl('Mapping data fields onto the layout', 'Placement des champs de données'),
                   validating: lbl('Validating with a test report card', 'Validation avec un bulletin de test'),
                   saving:     lbl('Saving the template', 'Enregistrement du modèle'),
+                  converting: lbl('Rebuilding the PDF as an HTML/CSS template (text, images, borders)', 'Reconstruction du PDF en modèle HTML/CSS (textes, images, bordures)'),
                 };
                 return (
                   <li key={st} className={i < cur ? 'text-emerald-700' : i === cur ? 'text-indigo-800 font-medium' : 'text-slate-400'}>
@@ -1905,6 +1906,13 @@ export default function Settings() {
               {rcOutcome.status === 'needs_review' && lbl('Template analysed, but it failed validation so it was NOT enabled. Open the designer to correct it.', 'Modèle analysé, mais la validation a échoué : il n’a PAS été activé. Ouvrez le concepteur pour le corriger.')}
               {rcOutcome.status === 'no_text' && lbl('No readable text was found in this PDF (it may be a scanned image). Open the designer to place fields manually.', 'Aucun texte lisible dans ce PDF (image numérisée ?). Ouvrez le concepteur pour placer les champs manuellement.')}
             </p>
+            {rcOutcome.html?.status === 'stored' && (
+              <p>• {lbl(`HTML template generated: ${rcOutcome.html.summary.stats.texts} text blocks, ${rcOutcome.html.summary.stats.images} images, ${rcOutcome.html.summary.stats.shapes} shapes over ${rcOutcome.html.summary.pages} page(s). Review and approve it in the designer — until then report cards keep using the original PDF.`, `Modèle HTML généré : ${rcOutcome.html.summary.stats.texts} textes, ${rcOutcome.html.summary.stats.images} images, ${rcOutcome.html.summary.stats.shapes} formes sur ${rcOutcome.html.summary.pages} page(s). Vérifiez-le et approuvez-le dans le concepteur — d’ici là, les bulletins utilisent le PDF d’origine.`)}</p>
+            )}
+            {rcOutcome.html?.status === 'stored' && rcOutcome.html.summary.warnings.map((m, i) => <p key={`h${i}`}>• {m}</p>)}
+            {rcOutcome.html?.status === 'failed' && (
+              <p>• {lbl('The HTML template could not be generated (the PDF template still works). You can retry from the designer.', 'Le modèle HTML n’a pas pu être généré (le modèle PDF fonctionne toujours). Vous pouvez réessayer depuis le concepteur.')} ({rcOutcome.html.error})</p>
+            )}
             {rcOutcome.validation && [...rcOutcome.validation.errors, ...rcOutcome.validation.warnings].map((m, i) => <p key={i}>• {m}</p>)}
           </div>
         )}

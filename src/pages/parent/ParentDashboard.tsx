@@ -310,7 +310,7 @@ export default function ParentDashboard() {
                         <div key={m.id} className="grid grid-cols-[1fr_auto_auto] gap-3 items-center py-2.5 border-b border-slate-50 dark:border-slate-700/60 last:border-0">
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-slate-700 dark:text-slate-200 truncate">{m.subject_name}</p>
-                            <p className="text-xs text-slate-400 truncate">{teacherBySubject.get(m.subject_name) ?? m.remark ?? '—'}</p>
+                            <p className="text-xs text-slate-400 truncate">{teacherBySubject.get(m.subject_name) ?? m.remark ?? ''}</p>
                           </div>
                           <span className="w-14 text-right text-sm font-semibold text-slate-700 dark:text-slate-200">{Math.round(m.total_score * 10) / 10}/20</span>
                           <span className="w-8 flex justify-center">

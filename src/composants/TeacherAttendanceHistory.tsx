@@ -99,7 +99,7 @@ export default function TeacherAttendanceHistory() {
                   <td className="px-5 py-2.5 font-medium text-slate-700">{r.first_name} {r.last_name}</td>
                   <td className="px-5 py-2.5 text-slate-500">{r.date}</td>
                   <td className="px-5 py-2.5 text-slate-500">
-                    {r.scan_time ? new Date(r.scan_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    {r.scan_time ? new Date(r.scan_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
                   </td>
                   <td className="px-5 py-2.5">
                     <span className={clsx('px-2 py-0.5 rounded text-xs font-medium', STATUS_CHIP[r.status])}>{STATUS_LABEL[r.status] ?? r.status}</span>

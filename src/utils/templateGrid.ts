@@ -233,13 +233,39 @@ export interface CardSummary {
 export function cardSummary(card: TemplateReportCard, ctx: FillContext): CardSummary {
   const printed = new Map((ctx.grid?.rows ?? []).filter(r => r.subjectId && r.printedCoef != null && r.confirmed !== false).map(r => [r.subjectId as string, r.printedCoef as number]));
   const cf = (e: TemplateEntry) => (e.subject_id ? printed.get(e.subject_id) : undefined) ?? e.coefficient;
-  const totalCoef = card.entries.reduce((s, e) => s + cf(e), 0);
-  const totalMarks = card.entries.reduce((s, e) => s + e.total_score * cf(e), 0);
+  // With a structured grid, totals cover exactly the subject rows printed on the card (Σ of the COEF column),
+  // so TOTAL COEF, TOTAL MARKS and the average always agree with what the sheet shows.
+  // Every printed subject counts, with or without a mark (an unmarked subject adds its COEF and 0 marks).
+  // Rows that are not matched to a subject still count (their printed COEF is on the sheet); a group's own
+  // printed total (e.g. 18 / 13 / 4) is authoritative when the template carries one.
+  const grid = ctx.grid;
+  const peerCoef = (r: GridRow): number | undefined => {
+    if (!r.subjectId) return undefined;
+    for (const c of ctx.classCards) { const e = c.entries.find(x => x.subject_id === r.subjectId); if (e) return e.coefficient; }
+    return undefined;
+  };
+  const rowCoef = (r: GridRow): number => { const e = entryFor(card, r); return e ? coefOf(e, r) : (r.printedCoef ?? peerCoef(r) ?? 0); };
+  let totalCoef: number, totalMarks: number, hasGrid = false;
+  if (grid?.rows.length) {
+    hasGrid = true;
+    totalCoef = 0; totalMarks = 0;
+    const groupCount = Math.max(grid.groups.length, ...grid.rows.map(r => r.group + 1));
+    for (let g = 0; g < groupCount; g++) {
+      const rows = grid.rows.filter(r => r.group === g);
+      const printedTotal = grid.groups[g]?.printedTotalCoef;
+      totalCoef += printedTotal != null ? printedTotal : rows.reduce((s, r) => s + rowCoef(r), 0);
+    }
+    for (const r of grid.rows) { const e = entryFor(card, r); if (e) totalMarks += e.total_score * coefOf(e, r); }
+  } else {
+    totalCoef = card.entries.reduce((s, e) => s + cf(e), 0);
+    totalMarks = card.entries.reduce((s, e) => s + e.total_score * cf(e), 0);
+  }
+  const average = (hasGrid || card.entries.length) && totalCoef > 0 ? round2(totalMarks / totalCoef) : card.percentage;
   const avgs = ctx.classCards.map(c => c.percentage);
   const passed = avgs.filter(a => a >= ctx.passMark).length;
   return {
     totalMarks: round2(totalMarks), totalCoef,
-    average: card.percentage, grade: gradeFor(card.percentage).grade,
+    average, grade: gradeFor(average).grade,
     rank: card.class_position, enrollment: card.out_of ?? ctx.classCards.length,
     classHighest: avgs.length ? round1(Math.max(...avgs)) : null,
     classLowest: avgs.length ? round1(Math.min(...avgs)) : null,

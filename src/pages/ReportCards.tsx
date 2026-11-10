@@ -10,6 +10,12 @@ import { api, mediaUrl, type ClassRecord, type Student, type AnnualSummary, type
 import { useLanguage } from '../i18n/LanguageContext';
 import { StatusBadge } from '../composants/ui/Badge';
 import { clsx } from 'clsx';
+import { isLowMark, LOW_MARK_RGB } from '../utils/lowMark';
+import { fillHtmlTemplate } from '../utils/htmlTemplate/htmlRender';
+import { loadHtmlTemplate } from '../utils/htmlTemplate/service';
+import { printHtmlDocument, downloadHtmlAsPdf } from '../utils/htmlTemplate/print';
+import type { HtmlTemplateMetadata } from '../utils/htmlTemplate/types';
+import HtmlTemplateFrame from '../composants/admin/HtmlTemplateFrame';
 import { fillTemplatePdf, renderPdfPages, type TemplateField, type TemplateReportCard } from '../utils/reportCardTemplate';
 import { SEQUENCE_OPTIONS, SEQUENCE_TERM, toSequenceCards, type SequenceNumber } from '../utils/sequenceReportCards';
 
@@ -44,7 +50,7 @@ const gradeColor: Record<string, string> = {
 };
 
 // ── Printable report card ─────────────────────────────────────────────────────
-function PrintCard({ rc }: { rc: RcRecord }) {
+function PrintCard({ rc, passMark }: { rc: RcRecord; passMark: number }) {
   const { lang } = useLanguage();
   const { schoolInfo, logoUrl } = useBranding();
 
@@ -130,10 +136,10 @@ function PrintCard({ rc }: { rc: RcRecord }) {
           {rc.entries.map((e, i) => (
             <tr key={e.subject_id} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'} style={{ borderBottom: '1px solid #e2e8f0' }}>
               <td className="px-3 py-2 font-medium text-slate-800">{e.subject_name}</td>
-              <td className="px-3 py-2 text-center text-slate-700">{e.ca_score}</td>
-              {!isSeq && <td className="px-3 py-2 text-center text-slate-700">{e.exam_score}</td>}
+              <td className={clsx('px-3 py-2 text-center', isLowMark(e.ca_score, passMark) ? 'text-red-600 font-semibold' : 'text-slate-700')}>{e.ca_score}</td>
+              {!isSeq && <td className={clsx('px-3 py-2 text-center', isLowMark(e.exam_score, passMark) ? 'text-red-600 font-semibold' : 'text-slate-700')}>{e.exam_score}</td>}
               <td className="px-3 py-2 text-center text-slate-500">{e.coefficient ?? 1}</td>
-              {!isSeq && <td className="px-3 py-2 text-center font-bold text-slate-900">{e.total_score}</td>}
+              {!isSeq && <td className={clsx('px-3 py-2 text-center font-bold', isLowMark(e.total_score, passMark) ? 'text-red-600' : 'text-slate-900')}>{e.total_score}</td>}
               <td className={clsx('px-3 py-2 text-center font-bold', gradeColor[e.grade] ?? 'text-slate-700')}>{e.grade}</td>
               <td className="px-3 py-2 text-center text-slate-600 text-xs">{e.remark}</td>
             </tr>
@@ -179,7 +185,7 @@ function PrintCard({ rc }: { rc: RcRecord }) {
         </div>
         <div className="border border-slate-300 rounded p-3 text-center">
           <p className="text-slate-500 text-xs uppercase tracking-wide mb-1">{lang === 'fr' ? 'Conduite' : 'Conduct'}</p>
-          <p className="text-lg font-bold text-slate-800">{rc.conduct || '—'}</p>
+          <p className="text-lg font-bold text-slate-800">{rc.conduct || ''}</p>
         </div>
       </div>
 
@@ -250,6 +256,8 @@ export default function ReportCards() {
   const [previewImages, setPreviewImages] = useState<string[] | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [printImages, setPrintImages] = useState<string[] | null>(null);
+  // HTML template renderer (approved in the template designer): the filled HTML document of the open card
+  const [previewHtml, setPreviewHtml] = useState<string | null>(null);
   const selectedClass = classes.find(c => c.id === classId);
   const selectedTerm  = terms.find(tm => tm.id === termId);
 
@@ -263,9 +271,15 @@ export default function ReportCards() {
   const extrasRef = useRef<{ key: string; byStudent: Map<string, { repeater: boolean | null; justifiedAbsences: number; unjustifiedAbsences: number }> } | null>(null);
   const photoCacheRef = useRef<Map<string, { bytes: Uint8Array; mime: string } | null>>(new Map());
   const passMarkRef = useRef<number | null>(null);
+  // pass average (end-of-year settings, default 10/20): marks below it are printed in red
+  const [passMark, setPassMark] = useState(10);
+  useEffect(() => { api.eoy.getConfig().then(c => { setPassMark(c.passAverage); passMarkRef.current = c.passAverage; }).catch(() => {}); }, []);
 
   // Same condition the PDF download already uses: an enabled template that has placed fields.
   const templateActive = !!(rcTemplate?.is_enabled && rcTemplate.file_path && (rcTemplate.fields?.length ?? 0) > 0);
+  // …and when the administrator approved the converted HTML/CSS template as the renderer
+  const htmlActive = templateActive && rcTemplate?.render_mode === 'html' && !!rcTemplate.html_meta;
+  const htmlPageWidth = (rcTemplate?.html_meta as HtmlTemplateMetadata | null | undefined)?.pageSettings.width ?? 595;
 
   // Adds the student facts a structured template can print (identity, class master, repeater, absences, photo).
   const buildTemplateCards = useCallback(async (cards: RcRecord[], withPhotos: boolean): Promise<TemplateReportCard[]> => {
@@ -315,9 +329,18 @@ export default function ReportCards() {
     return fillTemplatePdf(templateBytesRef.current.bytes.slice(0), rcTemplate.fields as TemplateField[], fillCards, schoolInfo, lang, { classCards, passMark: passMarkRef.current });
   }, [rcTemplate, schoolInfo, lang, buildTemplateCards, displayCards]);
 
+  // Fills the converted HTML template (same data, same engine, same class-wide statistics as the PDF renderer).
+  const fillWithHtml = useCallback(async (cards: RcRecord[]): Promise<string> => {
+    if (!rcTemplate) throw new Error('no template');
+    const doc = await loadHtmlTemplate();
+    if (passMarkRef.current == null) passMarkRef.current = await api.eoy.getConfig().then(c => c.passAverage).catch(() => 10);
+    const [fillCards, classCards] = await Promise.all([buildTemplateCards(cards, true), buildTemplateCards(displayCards, false)]);
+    return fillHtmlTemplate(doc, fillCards, { school: schoolInfo, lang, ctx: { classCards, passMark: passMarkRef.current }, fields: rcTemplate.fields as TemplateField[] });
+  }, [rcTemplate, schoolInfo, lang, buildTemplateCards, displayCards]);
+
   // Renders the given cards through the uploaded template; null = use the built-in layout instead.
   const renderWithTemplate = useCallback(async (cards: RcRecord[]): Promise<string[] | null> => {
-    if (!templateActive || cards.length === 0) return null;
+    if (!templateActive || htmlActive || cards.length === 0) return null;
     try {
       const pages = await renderPdfPages(await fillWithTemplate(cards), 1400);
       setTemplateError(null);
@@ -328,19 +351,30 @@ export default function ReportCards() {
       setTemplateError(err instanceof Error ? err.message : String(err));
       return null;
     }
-  }, [templateActive, fillWithTemplate]);
+  }, [templateActive, htmlActive, fillWithTemplate]);
 
   // Build the preview whenever a card is opened (or the template changes)
   useEffect(() => {
-    if (!previewRc) { setPreviewImages(null); return; }
+    if (!previewRc) { setPreviewImages(null); setPreviewHtml(null); return; }
     let cancelled = false;
     (async () => {
       setPreviewLoading(true);
+      if (htmlActive) {
+        try {
+          const html = await fillWithHtml([previewRc]);
+          if (!cancelled) { setPreviewHtml(html); setPreviewImages(null); setTemplateError(null); }
+        } catch (err) {
+          console.error('[report card html template]', err);
+          if (!cancelled) { setPreviewHtml(null); setTemplateError(err instanceof Error ? err.message : String(err)); }
+        }
+        if (!cancelled) setPreviewLoading(false);
+        return;
+      }
       const images = await renderWithTemplate([previewRc]);
-      if (!cancelled) { setPreviewImages(images); setPreviewLoading(false); }
+      if (!cancelled) { setPreviewHtml(null); setPreviewImages(images); setPreviewLoading(false); }
     })();
     return () => { cancelled = true; };
-  }, [previewRc, renderWithTemplate]);
+  }, [previewRc, renderWithTemplate, htmlActive, fillWithHtml]);
 
   useEffect(() => {
     let cancelled = false;
@@ -421,6 +455,14 @@ export default function ReportCards() {
 
   // Print one or many cards
   const handlePrint = async (rcs: RcRecord[]) => {
+    if (htmlActive) {
+      try { await printHtmlDocument(await fillWithHtml(rcs)); }
+      catch (err) {
+        console.error('[report card html template]', err);
+        alert(lang === 'fr' ? 'Le modèle de bulletin n’a pas pu être appliqué. Réessayez ou vérifiez le modèle dans les paramètres.' : 'The report card template could not be applied. Please retry or check the template in Settings.');
+      }
+      return;
+    }
     // With an active template, print the template-based pages; otherwise the built-in layout.
     const images = await renderWithTemplate(rcs);
     if (templateActive && !images) { alert(lang === 'fr' ? 'Le modèle de bulletin n’a pas pu être appliqué. Réessayez ou vérifiez le modèle dans les paramètres.' : 'The report card template could not be applied. Please retry or check the template in Settings.'); return; }
@@ -439,6 +481,15 @@ export default function ReportCards() {
     if (cards.length === 0) return;
 
     const fname = `report-cards-${(selectedClass?.name ?? 'class').replace(/\s+/g, '-')}-${sequence ? `sequence-${sequence}` : selectedTerm ? termLabel(selectedTerm) : 'term'}.pdf`.toLowerCase();
+
+    if (htmlActive) {
+      try { await downloadHtmlAsPdf(await fillWithHtml(cards), fname); }
+      catch (err) {
+        console.error('[report card html template]', err);
+        alert(lang === 'fr' ? 'Le modèle de bulletin n’a pas pu être appliqué. Réessayez ou vérifiez le modèle dans les paramètres.' : 'The report card template could not be applied. Please retry or check the template in Settings.');
+      }
+      return;
+    }
 
     // Use the admin-configured PDF template when one is enabled and mapped;
     // otherwise fall back to the built-in hand-drawn layout below.
@@ -568,6 +619,7 @@ export default function ReportCards() {
             4: { halign: 'center' },
           },
           margin: { left: X, right: X },
+          didParseCell: (d) => { if (d.section === 'body' && d.column.index === 1 && isLowMark(d.cell.raw, passMark)) d.cell.styles.textColor = LOW_MARK_RGB; },
         });
       } else autoTable(doc, {
         startY: y,
@@ -726,7 +778,7 @@ export default function ReportCards() {
               ))
             : printList.map((rc, i) => (
                 <div key={rc.id} style={i < printList.length - 1 ? { pageBreakAfter: 'always' } : undefined}>
-                  <PrintCard rc={rc} />
+                  <PrintCard rc={rc} passMark={passMark} />
                 </div>
               ))}
         </div>
@@ -770,10 +822,12 @@ export default function ReportCards() {
               </div>
             </div>
             <div className="overflow-y-auto max-h-[80vh] p-2">
-              {!templateLoaded || (templateActive && (previewLoading || (!previewImages && !templateError))) ? (
+              {!templateLoaded || (templateActive && (previewLoading || (!previewImages && !previewHtml && !templateError))) ? (
                 <div className="flex items-center justify-center py-24">
                   <div className="w-7 h-7 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
                 </div>
+              ) : previewHtml ? (
+                <HtmlTemplateFrame html={previewHtml} pageWidthPt={htmlPageWidth} title={previewRc.student_name} className="rounded bg-white shadow-sm overflow-hidden" />
               ) : previewImages ? (
                 <div className="space-y-3">
                   {previewImages.map((src, i) => (
@@ -785,7 +839,7 @@ export default function ReportCards() {
                   {lang === 'fr' ? 'Le modèle de bulletin n’a pas pu être appliqué : ' : 'The report card template could not be applied: '}{templateError}
                 </div>
               ) : (
-                <PrintCard rc={previewRc} />
+                <PrintCard rc={previewRc} passMark={passMark} />
               )}
             </div>
           </div>
@@ -963,7 +1017,7 @@ export default function ReportCards() {
                         <p className="text-xs text-slate-400">{t.common.position}</p>
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-700">{rc.conduct || '—'}</p>
+                        <p className="text-sm font-semibold text-slate-700">{rc.conduct || ''}</p>
                         <p className="text-xs text-slate-400">{t.reportCards.conduct}</p>
                       </div>
                       <StatusBadge status={rc.status} />
@@ -988,7 +1042,7 @@ export default function ReportCards() {
                             {rc.entries.map(e => (
                               <td key={e.subject_id} className="text-center px-2 py-1">
                                 <span className={clsx('font-bold', gradeColor[e.grade] ?? 'text-slate-700')}>{e.grade}</span>
-                                <span className="text-slate-400 ml-1">{e.total_score}</span>
+                                <span className={clsx('ml-1', isLowMark(e.total_score, passMark) ? 'text-red-600 font-semibold' : 'text-slate-400')}>{e.total_score}</span>
                               </td>
                             ))}
                           </tr>

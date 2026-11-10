@@ -46,7 +46,7 @@ export default function SystemLogs() {
                 <tr key={l.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                   <td className="px-5 py-3 font-medium text-slate-800 dark:text-slate-100">{l.action}</td>
                   <td className="px-5 py-3 text-slate-600 dark:text-slate-300">{l.actor_name ?? 'System'}</td>
-                  <td className="px-5 py-3 text-slate-500 dark:text-slate-400 text-xs">{l.target_type ? `${l.target_type}: ${l.target_id}` : '—'}</td>
+                  <td className="px-5 py-3 text-slate-500 dark:text-slate-400 text-xs">{l.target_type ? `${l.target_type}: ${l.target_id}` : ''}</td>
                   <td className="px-5 py-3 text-slate-500 dark:text-slate-400 text-xs">{new Date(l.created_at).toLocaleString()}</td>
                 </tr>
               ))}

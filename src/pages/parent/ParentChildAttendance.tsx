@@ -60,7 +60,7 @@ export default function ParentChildAttendance() {
                 <td className="px-4 py-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${STATUS_CHIP[r.status] ?? 'bg-slate-100 text-slate-600'}`}>{r.status}</span>
                 </td>
-                <td className="px-4 py-3 text-slate-500">{r.remarks ?? '—'}</td>
+                <td className="px-4 py-3 text-slate-500">{r.remarks ?? ''}</td>
               </tr>
             ))}
           </tbody>

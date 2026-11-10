@@ -133,11 +133,11 @@ export default function TeacherSalary() {
                 <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
                   <td className="px-4 py-3 text-slate-500">{w.created_at?.slice(0, 10)}</td>
                   <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{w.amount.toLocaleString()} FCFA</td>
-                  <td className="px-4 py-3 text-slate-500">{w.reason ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-500">{w.reason ?? ''}</td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${STATUS_CHIP[w.status]}`}>{w.status}</span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{w.reviewed_at?.slice(0,10) ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-500">{w.reviewed_at?.slice(0,10) ?? ''}</td>
                 </tr>
               ))}
             </tbody>

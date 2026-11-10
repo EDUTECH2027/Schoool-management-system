@@ -236,7 +236,7 @@ export default function Teachers() {
                           : <span className="text-slate-400">{t.teachers.none}</span>}
                       </td>
                       <td className="px-5 py-3 text-slate-600">{tc.qualification}</td>
-                      <td className="px-5 py-3 text-slate-500">{tc.joinDate ? new Date(tc.joinDate).toLocaleDateString('en-GB') : '—'}</td>
+                      <td className="px-5 py-3 text-slate-500">{tc.joinDate ? new Date(tc.joinDate).toLocaleDateString('en-GB') : ''}</td>
                       <td className="px-5 py-3">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium
                           ${tc.isActive ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}`}>

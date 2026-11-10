@@ -32,9 +32,9 @@ export default function TeacherProfile() {
   const rows: [string, string][] = [
     ['Full Name', `${teacher.first_name} ${teacher.last_name}`],
     ['Email', teacher.email],
-    ['Gender', teacher.gender ?? '—'],
-    ['Class Assigned', teacher.class_assigned ?? '—'],
-    ['Joined', teacher.join_date ?? '—'],
+    ['Gender', teacher.gender ?? ''],
+    ['Class Assigned', teacher.class_assigned ?? ''],
+    ['Joined', teacher.join_date ?? ''],
     ['Subjects', Array.isArray(teacher.subjects) ? teacher.subjects.join(', ') : teacher.subjects],
   ];
 
@@ -63,7 +63,7 @@ export default function TeacherProfile() {
           <span className="w-40 text-sm text-slate-500 shrink-0">Phone</span>
           {editing
             ? <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} className="text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 w-56" />
-            : <span className="text-sm text-slate-800 dark:text-slate-200">{teacher.phone ?? '—'}</span>
+            : <span className="text-sm text-slate-800 dark:text-slate-200">{teacher.phone ?? ''}</span>
           }
         </div>
 
@@ -71,7 +71,7 @@ export default function TeacherProfile() {
           <span className="w-40 text-sm text-slate-500 shrink-0">Qualification</span>
           {editing
             ? <input value={form.qualification} onChange={e => setForm(f => ({ ...f, qualification: e.target.value }))} className="text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 w-64" />
-            : <span className="text-sm text-slate-800 dark:text-slate-200">{teacher.qualification ?? '—'}</span>
+            : <span className="text-sm text-slate-800 dark:text-slate-200">{teacher.qualification ?? ''}</span>
           }
         </div>
 

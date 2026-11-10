@@ -17,15 +17,15 @@ export default function StudentProfile() {
   const rows: [string, string][] = [
     ['Student No.', student.student_number],
     ['Full Name', `${student.first_name} ${student.last_name}`],
-    ['Date of Birth', student.date_of_birth ?? '—'],
-    ['Gender', student.gender ?? '—'],
-    ['Class', student.class_name ?? '—'],
-    ['Grade Level', student.grade_level_name ?? '—'],
-    ['Admission Date', student.admission_date ?? '—'],
-    ['Address', student.address ?? '—'],
-    ['Guardian', student.guardian_name ?? '—'],
-    ['Guardian Phone', student.guardian_phone ?? '—'],
-    ['Relationship', student.guardian_relationship ?? '—'],
+    ['Date of Birth', student.date_of_birth ?? ''],
+    ['Gender', student.gender ?? ''],
+    ['Class', student.class_name ?? ''],
+    ['Grade Level', student.grade_level_name ?? ''],
+    ['Admission Date', student.admission_date ?? ''],
+    ['Address', student.address ?? ''],
+    ['Guardian', student.guardian_name ?? ''],
+    ['Guardian Phone', student.guardian_phone ?? ''],
+    ['Relationship', student.guardian_relationship ?? ''],
   ];
 
   return (

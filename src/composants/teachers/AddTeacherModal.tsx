@@ -451,8 +451,8 @@ export default function AddTeacherModal({ onClose, onAdd }: Props) {
                       {[
                         { label: t.common.name,          value: `${form.firstName} ${form.lastName}` },
                         { label: t.teachers.qualification,value: form.qualification === 'Other' ? form.customQualification : form.qualification },
-                        { label: t.teachers.subjects,     value: form.selectedSubjects.join(', ') || '—' },
-                        { label: t.teachers.joinDate,     value: form.joinDate ? new Date(form.joinDate).toLocaleDateString('en-GB') : '—' },
+                        { label: t.teachers.subjects,     value: form.selectedSubjects.join(', ') || '' },
+                        { label: t.teachers.joinDate,     value: form.joinDate ? new Date(form.joinDate).toLocaleDateString('en-GB') : '' },
                       ].map(row => (
                         <div key={row.label} className="flex justify-between gap-3">
                           <span className="text-indigo-500 shrink-0">{row.label}</span>

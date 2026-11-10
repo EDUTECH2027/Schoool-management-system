@@ -12,6 +12,7 @@ import { PDFDocument } from 'pdf-lib';
 import type { PDFPageProxy } from 'pdfjs-dist';
 import { api, mediaUrl } from '../api/client';
 import { detectStructure } from './templateStructureAnalysis';
+import { convertAndStoreTemplate, invalidateHtmlTemplateCache, type ConversionSummary } from './htmlTemplate/service';
 import {
   fillTemplatePdf,
   type SimpleFieldKey, type SimpleField, type TableField, type TableColumn, type TableColumnKey,
@@ -454,8 +455,8 @@ export async function validateTemplate(
 }
 
 // ── Upload pipeline: analyse → validate → save (enable only when valid) ─────
-export type AnalysisStep = 'reading' | 'layout' | 'mapping' | 'validating' | 'saving';
-export const ANALYSIS_STEPS: AnalysisStep[] = ['reading', 'layout', 'mapping', 'validating', 'saving'];
+export type AnalysisStep = 'reading' | 'layout' | 'mapping' | 'validating' | 'saving' | 'converting';
+export const ANALYSIS_STEPS: AnalysisStep[] = ['reading', 'layout', 'mapping', 'validating', 'saving', 'converting'];
 
 export interface AnalysisOutcome {
   status: 'enabled' | 'needs_review' | 'no_text';
@@ -464,6 +465,19 @@ export interface AnalysisOutcome {
   validation: TemplateValidation | null;
   // structured templates: how the printed subject rows were matched to application subjects
   grid?: { rows: number; mapped: number; toVerify: number; unmapped: number };
+  // PDF → HTML/CSS reconstruction stored next to the PDF (best effort: a failure never blocks the PDF template)
+  html?: { status: 'stored'; summary: ConversionSummary } | { status: 'failed'; error: string };
+}
+
+async function convertHtmlBestEffort(bytes: ArrayBuffer, fields: TemplateField[], fileName: string | null): Promise<AnalysisOutcome['html']> {
+  try {
+    const { stats, pages, warnings, partialPages, scannedPages } = await convertAndStoreTemplate(bytes, fields, fileName);
+    invalidateHtmlTemplateCache();
+    return { status: 'stored', summary: { stats, pages, warnings, partialPages, scannedPages } };
+  } catch (err) {
+    console.error('[template] HTML conversion failed', err);
+    return { status: 'failed', error: err instanceof Error ? err.message : String(err) };
+  }
 }
 
 const MIN_STEP_MS = 700; // let the user follow the progress; large PDFs naturally take longer
@@ -480,6 +494,7 @@ async function timed<T>(work: () => Promise<T>): Promise<T> {
 export async function analyzeAndApplyTemplate(
   filePath: string,
   onStep: (step: AnalysisStep) => void,
+  fileName: string | null = null,
 ): Promise<AnalysisOutcome> {
   onStep('reading');
   const bytes = await timed(() => fetch(mediaUrl(filePath)).then(r => {
@@ -495,8 +510,11 @@ export async function analyzeAndApplyTemplate(
   await timed(async () => undefined);
 
   if (!analysis.hasTextLayer || analysis.fields.length === 0) {
-    // Scanned image or unreadable layout: leave the upload as-is (disabled, no fields) for the manual designer.
-    return { status: 'no_text', detectedLabels: 0, tableDetected: false, validation: null };
+    // Scanned image or unreadable layout: leave the PDF template as-is (disabled, no fields) for the manual designer,
+    // but still reconstruct the page (the scan is kept as the HTML background).
+    onStep('converting');
+    const html = await convertHtmlBestEffort(bytes, [], fileName);
+    return { status: 'no_text', detectedLabels: 0, tableDetected: false, validation: null, html };
   }
 
   onStep('validating');
@@ -514,7 +532,11 @@ export async function analyzeAndApplyTemplate(
     fields: analysis.fields,
   }));
 
+  onStep('converting');
+  const html = await convertHtmlBestEffort(bytes, analysis.fields, fileName);
+
   return {
+    html,
     status: enable ? 'enabled' : 'needs_review',
     detectedLabels: analysis.detectedLabels.length,
     tableDetected: analysis.tableDetected,

@@ -403,7 +403,7 @@ export default function Fees() {
                       </td>
                       <td className="px-5 py-3"><StatusBadge status={f.status} /></td>
                       <td className="px-5 py-3 text-slate-500 text-xs">
-                        {f.dueDate ? new Date(f.dueDate).toLocaleDateString('en-GB') : '—'}
+                        {f.dueDate ? new Date(f.dueDate).toLocaleDateString('en-GB') : ''}
                       </td>
                       <td className="px-5 py-3">
                         <button
@@ -458,7 +458,7 @@ export default function Fees() {
                           <span className="text-green-600">{p.amount.toLocaleString()} FCFA</span>
                         </div>
                         <div className="flex justify-between text-slate-400 mt-0.5">
-                          <span>{p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('en-GB') : '—'}</span>
+                          <span>{p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('en-GB') : ''}</span>
                           <span>{p.receiptNumber}</span>
                         </div>
                       </div>

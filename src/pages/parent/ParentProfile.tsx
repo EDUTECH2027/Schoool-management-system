@@ -54,13 +54,13 @@ export default function ParentProfile() {
             {editing
               ? <input value={form[key]} onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
                   className="text-sm border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-1.5 bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-200 flex-1 max-w-xs" />
-              : <span className="text-sm text-slate-800 dark:text-slate-200">{parent[key as keyof Parent] as string ?? '—'}</span>
+              : <span className="text-sm text-slate-800 dark:text-slate-200">{parent[key as keyof Parent] as string ?? ''}</span>
             }
           </div>
         ))}
         <div className="flex items-center px-5 py-3.5">
           <span className="w-36 text-sm text-slate-500 shrink-0">Email</span>
-          <span className="text-sm text-slate-800 dark:text-slate-200">{parent.email ?? '—'}</span>
+          <span className="text-sm text-slate-800 dark:text-slate-200">{parent.email ?? ''}</span>
         </div>
       </div>
     </div>

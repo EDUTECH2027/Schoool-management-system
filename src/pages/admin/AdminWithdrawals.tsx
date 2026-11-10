@@ -69,7 +69,7 @@ export default function AdminWithdrawals() {
               <tr key={w.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30">
                 <td className="px-4 py-3 font-medium text-slate-800 dark:text-slate-200">{w.teacher_name ?? w.teacher_id}</td>
                 <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{w.amount.toLocaleString()}</td>
-                <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{w.reason ?? '—'}</td>
+                <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{w.reason ?? ''}</td>
                 <td className="px-4 py-3">
                   <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${STATUS_CHIP[w.status] ?? 'bg-slate-100 text-slate-600'}`}>{w.status}</span>
                 </td>

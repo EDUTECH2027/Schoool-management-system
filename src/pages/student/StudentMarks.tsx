@@ -67,9 +67,9 @@ export default function StudentMarks() {
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{m.exam_score}</td>
                 <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{m.total_score}</td>
                 <td className="px-4 py-3">
-                  <span className={`font-bold ${GRADE_COLOR[m.grade?.[0]] ?? 'text-slate-600'}`}>{m.grade ?? '—'}</span>
+                  <span className={`font-bold ${GRADE_COLOR[m.grade?.[0]] ?? 'text-slate-600'}`}>{m.grade ?? ''}</span>
                 </td>
-                <td className="px-4 py-3 text-slate-500">{m.remark ?? '—'}</td>
+                <td className="px-4 py-3 text-slate-500">{m.remark ?? ''}</td>
               </tr>
             ))}
           </tbody>

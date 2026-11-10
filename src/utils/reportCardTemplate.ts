@@ -4,6 +4,7 @@
  * modification of this file, via any medium, is strictly prohibited.
  */
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from 'pdf-lib';
+import { isLowMark } from './lowMark';
 import {
   rowValues, groupAverage, groupRank, groupTotals, cardSummary,
   type SubjectGridField, type TickField, type ImageField, type InfoField, type GridColumn, type GridRole, type FillContext, type CardSummary,
@@ -192,7 +193,7 @@ export function resolveSimpleValue(key: SimpleFieldKey, rc: TemplateReportCard, 
     case 'enrollment':            return fmtNum(sum?.enrollment ?? rc.out_of);
     case 'total_marks':           return fmtNum(sum?.totalMarks);
     case 'total_coef':            return fmtNum(sum?.totalCoef);
-    case 'student_average':       return fmtNum(rc.percentage);
+    case 'student_average':       return fmtNum(sum?.average ?? rc.percentage);
     case 'grade':                 return sum?.grade ?? '';
     case 'rank':                  return rc.class_position != null ? String(rc.class_position) : '';
     case 'class_highest':         return fmtNum(sum?.classHighest);
@@ -310,7 +311,9 @@ function fitText(text: string, font: PDFFont, size: number, maxWidth: number): s
   return t;
 }
 
-function drawTableField(page: PDFPage, field: TableField, rc: TemplateReportCard, pageWidth: number, pageHeight: number, font: PDFFont, boldFont: PDFFont, lang: 'en' | 'fr') {
+const LOW_RGB = rgb(0.86, 0.15, 0.15); // marks under the pass average are printed in red
+
+function drawTableField(page: PDFPage, field: TableField, rc: TemplateReportCard, pageWidth: number, pageHeight: number, font: PDFFont, boldFont: PDFFont, lang: 'en' | 'fr', passMark: number) {
   const tableX = field.x * pageWidth;
   const tableTop = pageHeight - field.y * pageHeight;
   const tableWidth = field.width * pageWidth;
@@ -349,9 +352,11 @@ function drawTableField(page: PDFPage, field: TableField, rc: TemplateReportCard
         text = fitText(text, useFont, fontSize, colW - 4);
         const tw = useFont.widthOfTextAtSize(text, fontSize);
         const x = col.align === 'center' ? cx + (colW - tw) / 2 : cx + 2;
-        page.drawText(text, { x, y: rowY, size: fontSize, font: useFont, color });
+        const isMarkCol = col.key === 'ca_score' || col.key === 'exam_score' || col.key === 'total_score';
+        page.drawText(text, { x, y: rowY, size: fontSize, font: useFont, color: isMarkCol && isLowMark(text, passMark) ? LOW_RGB : color });
       } else {
-        page.drawText(text, { x: cx + 2, y: rowY, size: fontSize, font, color });
+        const isMarkCol = col.key === 'ca_score' || col.key === 'exam_score' || col.key === 'total_score';
+        page.drawText(text, { x: cx + 2, y: rowY, size: fontSize, font, color: isMarkCol && isLowMark(text, passMark) ? LOW_RGB : color });
       }
       cx += colW;
     });
@@ -414,14 +419,16 @@ function drawSubjectGrid(page: PDFPage, grid: SubjectGridField, rc: TemplateRepo
     const top = row.yTop * ph, h = row.height * ph;
     for (const col of grid.columns as GridColumn[]) {
       if (col.printed && col.roles.every(r => r === 'coef')) continue; // coefficient already printed on the template
-      const lines = col.roles.length;
-      col.roles.forEach((role, i) => {
+      // MIN over MAX with identical values: print the mark once, centred, instead of twice.
+      const roles = col.roles.length === 2 && col.roles[0] === 'min' && col.roles[1] === 'max' && v.min === v.max ? (['min'] as GridRole[]) : col.roles;
+      const lines = roles.length;
+      roles.forEach((role, i) => {
         const text = ROLE_TEXT(role, v);
         if (!text) return;
         const lineH = h / lines;
         const size = Math.min(grid.fontSize, lineH * 0.78, lines > 1 ? 6.5 : 99);
         const baselineScreen = top + lineH * i + lineH / 2 + size * 0.35;
-        drawFitted(page, text, role === 'grade' ? boldFont : font, col.x * pw + 1.5, ph - baselineScreen, size, col.width * pw - 3, col.align, color);
+        drawFitted(page, text, role === 'grade' ? boldFont : font, col.x * pw + 1.5, ph - baselineScreen, size, col.width * pw - 3, role === 'remark' ? 'center' : col.align, role === 'mark' && isLowMark(v.mark, ctx.passMark) ? LOW_RGB : color);
       });
     }
   }
@@ -492,7 +499,7 @@ export async function fillTemplatePdf(
 
     for (const field of fields) {
       if (field.type === 'table') {
-        drawTableField(copiedPage, field, rc, pageWidth, pageHeight, font, boldFont, lang);
+        drawTableField(copiedPage, field, rc, pageWidth, pageHeight, font, boldFont, lang, ctx.passMark);
         continue;
       }
       if (field.type === 'info') continue; // notes for the review screen only

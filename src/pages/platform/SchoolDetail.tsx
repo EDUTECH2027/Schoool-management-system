@@ -140,7 +140,7 @@ export default function SchoolDetail() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Subscription Started</span>
-              <span className="text-slate-800 dark:text-slate-100">{school.subscription_started ? new Date(school.subscription_started).toLocaleDateString() : '—'}</span>
+              <span className="text-slate-800 dark:text-slate-100">{school.subscription_started ? new Date(school.subscription_started).toLocaleDateString() : ''}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-500">Expiry</span>

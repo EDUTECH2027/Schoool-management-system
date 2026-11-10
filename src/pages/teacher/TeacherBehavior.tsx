@@ -127,7 +127,7 @@ export default function TeacherBehavior() {
                   <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${CAT_CHIP[r.category]}`}>{r.category}</span>
                 </td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400 max-w-xs truncate">{r.description}</td>
-                <td className="px-4 py-3 text-slate-500">{r.action_taken ?? '—'}</td>
+                <td className="px-4 py-3 text-slate-500">{r.action_taken ?? ''}</td>
               </tr>
             ))}
           </tbody>

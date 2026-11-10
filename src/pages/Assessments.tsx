@@ -428,7 +428,7 @@ export default function Assessments() {
                       />
                     </td>
                     <td className="px-5 py-3 text-center font-bold text-slate-800">
-                      {s.hasAny ? s.total : '—'}
+                      {s.hasAny ? s.total : ''}
                     </td>
                     <td className="px-5 py-3 text-center">
                       {s.hasAny && (
@@ -438,7 +438,7 @@ export default function Assessments() {
                       )}
                     </td>
                     <td className="px-5 py-3 text-center text-slate-500 text-xs">
-                      {s.hasAny ? s.remark : '—'}
+                      {s.hasAny ? s.remark : ''}
                     </td>
                   </tr>
                 ))}

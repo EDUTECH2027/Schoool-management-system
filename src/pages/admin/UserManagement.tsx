@@ -156,7 +156,7 @@ export default function UserManagement() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-slate-500 text-xs">
-                  {u.teacher_id ? `Teacher: ${u.teacher_id}` : u.student_id ? `Student: ${u.student_id}` : u.parent_id ? `Parent: ${u.parent_id}` : '—'}
+                  {u.teacher_id ? `Teacher: ${u.teacher_id}` : u.student_id ? `Student: ${u.student_id}` : u.parent_id ? `Parent: ${u.parent_id}` : ''}
                 </td>
                 <td className="px-4 py-3 text-slate-500">{u.created_at?.slice(0, 10)}</td>
                 <td className="px-4 py-3">

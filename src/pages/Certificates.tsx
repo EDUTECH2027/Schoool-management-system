@@ -605,7 +605,7 @@ export default function Certificates() {
                     <tr key={c.id} className={savedId === c.id ? 'bg-indigo-50' : ''}>
                       <td className="px-3 py-2.5">
                         <p className="font-medium text-slate-800">{c.recipient_name}</p>
-                        <p className="text-xs text-slate-400">{c.class_name || '—'}</p>
+                        <p className="text-xs text-slate-400">{c.class_name || ''}</p>
                       </td>
                       <td className="px-3 py-2.5 text-slate-600">{c.doc_label}</td>
                       <td className="px-3 py-2.5 text-slate-500">{new Date(c.created_at).toLocaleDateString(lang === 'fr' ? 'fr-FR' : 'en-GB')}</td>

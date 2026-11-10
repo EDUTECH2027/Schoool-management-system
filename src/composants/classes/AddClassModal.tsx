@@ -230,10 +230,10 @@ export default function AddClassModal({ onClose, onAdd }: Props) {
                   </p>
                   {[
                     { label: t.classes.className,   value: form.name             },
-                    { label: t.classes.gradeLevel,  value: selectedGrade?.name ?? '—' },
-                    { label: t.classes.room,        value: form.room || '—'      },
-                    { label: t.classes.capacity,    value: form.capacity || '—'  },
-                    { label: t.classes.classTeacher,value: selectedTeacher ? `${selectedTeacher.firstName} ${selectedTeacher.lastName}` : '—' },
+                    { label: t.classes.gradeLevel,  value: selectedGrade?.name ?? '' },
+                    { label: t.classes.room,        value: form.room || ''      },
+                    { label: t.classes.capacity,    value: form.capacity || ''  },
+                    { label: t.classes.classTeacher,value: selectedTeacher ? `${selectedTeacher.firstName} ${selectedTeacher.lastName}` : '' },
                   ].map(row => (
                     <div key={row.label} className="flex justify-between text-xs">
                       <span className="text-indigo-500">{row.label}</span>

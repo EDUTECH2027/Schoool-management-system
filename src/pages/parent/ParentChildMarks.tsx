@@ -61,7 +61,7 @@ export default function ParentChildMarks() {
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{m.ca_score}</td>
                 <td className="px-4 py-3 text-slate-600 dark:text-slate-400">{m.exam_score}</td>
                 <td className="px-4 py-3 font-semibold text-slate-800 dark:text-slate-200">{m.total_score}</td>
-                <td className="px-4 py-3 font-bold text-violet-600">{m.grade ?? '—'}</td>
+                <td className="px-4 py-3 font-bold text-violet-600">{m.grade ?? ''}</td>
               </tr>
             ))}
           </tbody>

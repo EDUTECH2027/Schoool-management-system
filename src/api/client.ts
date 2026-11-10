@@ -403,6 +403,9 @@ export const api = {
     fd.append('file', file);
     return uploadRequest<ReportCardTemplate>('/report-card-template/upload', fd);
   },
+  saveReportCardHtmlTemplate: (payload: HtmlTemplatePayload) => request<ReportCardTemplate>('PUT', '/report-card-template/html', payload),
+  getReportCardHtmlTemplate:  () => request<HtmlTemplateDocument>('GET', '/report-card-template/html'),
+  setReportCardRenderMode:    (mode: 'overlay' | 'html') => request<ReportCardTemplate>('PUT', '/report-card-template/render-mode', { mode }),
   updateReportCardTemplate: (data: { is_enabled: boolean; page_width?: number | null; page_height?: number | null; fields?: unknown[] }) =>
     request<ReportCardTemplate>('PUT', '/report-card-template', data),
 
@@ -774,7 +777,14 @@ export interface Mark { id: string; student_id: string; student_name: string; su
 export interface ReportCard { id: string; student_id: string; student_name: string; term_name: string; academic_year: string; class_name: string; percentage: number; sequence1_average?: number; sequence2_average?: number; class_position: number; out_of?: number; status: string; conduct: string; entries: ReportCardEntry[]; }
 export interface ReportCardEntry { subject_id: string; subject_name: string; ca_score: number; exam_score: number; total_score: number; coefficient?: number; grade: string; position?: number; teacher_comment?: string; }
 export interface AnnualSummary { terms: { first: number | null; second: number | null; third: number | null }; termsFound: number; finalAverage: number | null; }
-export interface ReportCardTemplate { id: string; is_enabled: boolean; file_path: string | null; file_name: string | null; page_width: number | null; page_height: number | null; fields: unknown[]; }
+export interface ReportCardTemplate {
+  id: string; is_enabled: boolean; file_path: string | null; file_name: string | null; page_width: number | null; page_height: number | null; fields: unknown[];
+  // PDF → HTML template engine: conversion metadata (null until converted) and which renderer report cards use
+  html_meta?: unknown | null;
+  render_mode?: 'overlay' | 'html';
+}
+export interface HtmlTemplatePayload { html: string; css: string; assets: Record<string, unknown>; metadata: unknown }
+export interface HtmlTemplateDocument { html: string; css: string; metadata: unknown }
 export interface Payment { id: string; fee_record_id: string; amount: number; method: string; reference: string; payment_date: string; receipt_number: string; }
 export interface FeeRecord { id: string; student_id: string; student_name: string; student_number: string; class_id: string; class_name: string; fee_name: string; academic_year: string; amount_due: number; amount_paid: number; balance: number; status: string; due_date: string; payments: Payment[]; }
 export interface FeesSummary { total_due: number; total_collected: number; total_pending: number; paid_count: number; partial_count: number; overdue_count: number; total_records: number; }

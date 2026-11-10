@@ -16,6 +16,8 @@ import {
 import { analyzeTemplatePdf, validateTemplate } from '../../utils/reportCardTemplateAnalysis';
 import { gradeFor } from '../../utils/sequenceReportCards';
 import TemplateReviewPanel from '../../composants/admin/TemplateReviewPanel';
+import HtmlTemplatePanel from '../../composants/admin/HtmlTemplatePanel';
+import type { HtmlTemplateMetadata } from '../../utils/htmlTemplate/types';
 
 const CANVAS_WIDTH = 800;
 
@@ -38,6 +40,8 @@ export default function ReportCardTemplateDesigner() {
   const [subjects, setSubjects] = useState<{ id: string; name: string }[]>([]);
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const [busy, setBusy] = useState<'preview' | 'analyse' | null>(null);
+  const [htmlMeta, setHtmlMeta] = useState<HtmlTemplateMetadata | null>(null);
+  const [renderMode, setRenderMode] = useState<'overlay' | 'html'>('overlay');
   const bytesRef = useRef<ArrayBuffer | null>(null);
 
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -51,6 +55,8 @@ export default function ReportCardTemplateDesigner() {
         setFilePath(tpl.file_path);
         setIsEnabled(tpl.is_enabled);
         setFields((tpl.fields as TemplateField[]) ?? []);
+        setHtmlMeta((tpl.html_meta as HtmlTemplateMetadata | null) ?? null);
+        setRenderMode(tpl.render_mode ?? 'overlay');
         setSubjects((await api.getSubjects().catch(() => [])).map(s => ({ id: s.id, name: s.name })));
         if (tpl.file_path) {
           const bytes = await fetch(mediaUrl(tpl.file_path)).then(r => r.arrayBuffer());
@@ -448,6 +454,11 @@ export default function ReportCardTemplateDesigner() {
           )}
         </div>
       </div>
+
+      <HtmlTemplatePanel
+        bytesRef={bytesRef} fileName={fileName} fields={fields} page={page}
+        sampleCards={sampleCards} initialMeta={htmlMeta} initialMode={renderMode}
+      />
     </div>
   );
 }
