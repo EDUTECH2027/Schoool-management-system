@@ -6,6 +6,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useBranding } from '../context/BrandingContext';
 import { useLanguage } from '../i18n/LanguageContext';
+import loginBackground from '../assets/pexels-mary-taylor-5896515.jpg';
 
 const FEATURES = [
   { icon: Users,      en: 'Manage students, teachers & staff',          fr: 'Gérer élèves, enseignants & personnel' },
@@ -104,8 +105,18 @@ export default function Login() {
     /* ── Full-page dark background ──────────────────────────────── */
     <div
       className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #0f172a 0%, #1e1b4b 55%, #0f172a 100%)' }}
+      style={{ background: '#0f172a' }}
     >
+      {/* Background photo (original resolution, cover-fitted) */}
+      <img
+        src={loginBackground}
+        alt=""
+        aria-hidden="true"
+        decoding="async"
+        fetchPriority="high"
+        className="absolute inset-0 w-full h-full object-cover object-center pointer-events-none select-none"
+      />
+
       {/* Dot grid overlay */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -114,11 +125,6 @@ export default function Login() {
           backgroundSize: '30px 30px',
         }}
       />
-
-      {/* Ambient glow blobs */}
-      <div className="absolute top-[-10%] left-[-5%] w-125 h-125 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-5%] w-125 h-125 bg-violet-700/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-[40%] left-[55%] w-64 h-64 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none" />
 
       {/* ── Floating card ───────────────────────────────────────── */}
       <div className="relative z-10 w-full max-w-5xl flex flex-col lg:flex-row rounded-3xl overflow-hidden shadow-[0_32px_80px_rgba(0,0,0,0.6)]">
