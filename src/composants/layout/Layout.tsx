@@ -10,6 +10,7 @@ import { RefreshProvider, RefreshableOutlet } from '../../context/RefreshContext
 import LoadingScreen from '../ui/LoadingScreen';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import AdminBottomNav from './AdminBottomNav';
 
 export default function Layout() {
   const location = useLocation();
@@ -38,6 +39,7 @@ export default function Layout() {
             <RefreshableOutlet />
           </Suspense>
         </main>
+        <AdminBottomNav onMore={() => setMobileMenuOpen(true)} />
       </div>
     </div>
     </RefreshProvider>

@@ -13,9 +13,11 @@ import type { ReactNode } from 'react';
 
 interface Props {
   sidebar: ReactNode;
+  // Optional mobile tab bar; receives a callback that opens the side menu.
+  bottomNav?: (openMenu: () => void) => ReactNode;
 }
 
-export default function PortalLayout({ sidebar }: Props) {
+export default function PortalLayout({ sidebar, bottomNav }: Props) {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -42,6 +44,7 @@ export default function PortalLayout({ sidebar }: Props) {
             <RefreshableOutlet />
           </Suspense>
         </main>
+        {bottomNav?.(() => setMobileMenuOpen(true))}
       </div>
     </div>
     </RefreshProvider>

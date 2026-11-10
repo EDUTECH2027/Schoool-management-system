@@ -5,7 +5,8 @@
  */
 import PortalLayout from './PortalLayout';
 import TeacherSidebar from './TeacherSidebar';
+import TeacherBottomNav from './TeacherBottomNav';
 
 export default function TeacherLayout() {
-  return <PortalLayout sidebar={<TeacherSidebar />} />;
+  return <PortalLayout sidebar={<TeacherSidebar />} bottomNav={(openMenu) => <TeacherBottomNav onMore={openMenu} />} />;
 }
